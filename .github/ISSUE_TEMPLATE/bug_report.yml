@@ -1,0 +1,42 @@
+name: "Bug report"
+description: "Lỗi trên app đã deploy hoặc local — dùng cho cả beta của bạn cùng lớp"
+labels: ["bug"]
+body:
+  - type: input
+    id: url
+    attributes:
+      label: URL + vai trò đang đăng nhập
+      placeholder: "https://.../items/1 — buyer an@gearloop.local"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Các bước tái hiện
+      placeholder: |
+        1. Vào ...
+        2. Bấm ...
+        3. Thấy lỗi
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Mức độ
+      options:
+        - "P0 — vỡ luồng chính (đặt lịch / cọc / đăng nhập)"
+        - "P1 — tính năng sai, có workaround"
+        - "P2 — lỗi hiển thị, phiền nhưng dùng được"
+        - "P3 — góp ý hoàn thiện"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Kỳ vọng vs thực tế
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Ảnh chụp màn hình / log

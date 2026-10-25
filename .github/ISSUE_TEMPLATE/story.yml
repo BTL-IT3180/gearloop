@@ -1,0 +1,45 @@
+name: "User Story"
+description: "Một story có thể giao cho 1 pod, hoàn thành trong ≤ 1 ngày kể cả review"
+labels: ["feature"]
+body:
+  - type: dropdown
+    id: role
+    attributes:
+      label: Vai trò
+      options: [Admin, Seller, Buyer, Hệ thống]
+    validations:
+      required: true
+  - type: textarea
+    id: story
+    attributes:
+      label: User story
+      description: "Là <vai trò>, tôi muốn <mục tiêu>, để <lợi ích>"
+    validations:
+      required: true
+  - type: textarea
+    id: ac
+    attributes:
+      label: Acceptance criteria
+      description: "Danh sách checkbox — chính là prompt cho AI agent. Viết testable."
+      placeholder: "- [ ] Khi ... thì ..."
+    validations:
+      required: true
+  - type: textarea
+    id: entities
+    attributes:
+      label: Entities / files dự kiến chạm
+      description: "Từ doc/data-model.md. Agent chạm file khác → từ chối PR."
+    validations:
+      required: true
+  - type: dropdown
+    id: pod
+    attributes:
+      label: Pod phụ trách
+      options: ["A (auth/CI)", "B (domain/schema)", "C (transaction/admin)", "D (QA/docs)"]
+    validations:
+      required: true
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Ngoại phạm vi rõ ràng
+      description: "Cái gì KHÔNG làm trong story này — chặn AI tự sáng tạo."

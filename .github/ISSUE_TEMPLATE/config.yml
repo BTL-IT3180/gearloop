@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Board dự án (GitHub Projects)
+    url: https://github.com/orgs/BTL-IT3180/projects
+    about: Sprint board, backlog — xem trước khi tạo issue trùng.
