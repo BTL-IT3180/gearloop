@@ -1,0 +1,313 @@
+// GearLoop — schema v1 (Sprint 1, GL-104).
+// Nguồn sự thật của doc/data-model.md — đổi schema phải đổi docs theo.
+// Tiền tệ: Int VND (đồng, không số lẻ). Thời gian: UTC.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────── Enums ─────────────────────────
+
+enum Role {
+  ADMIN
+  SELLER
+  BUYER
+}
+
+enum ItemStatus {
+  ACTIVE
+  ARCHIVED
+  SUSPENDED
+}
+
+// Một dòng CalendarDay cho một ngày của một thiết bị.
+// FREE = còn trống · BOOKED = đang có lượt thuê · BLOCKED = chủ chặn (bảo trì)
+enum CalendarDayKind {
+  FREE
+  BOOKED
+  BLOCKED
+}
+
+// Máy trạng thái Booking — xem doc/data-model.md mục 5
+enum BookingStatus {
+  REQUESTED
+  APPROVED
+  DEPOSIT_HELD
+  PICKED_UP
+  RETURN_PENDING
+  RETURNED
+  CLOSED
+  DISPUTED
+  RESOLVED
+}
+
+enum ReportPhase {
+  PICKUP
+  RETURN
+}
+
+enum ReportItemState {
+  OK
+  NOT_OK
+}
+
+enum ClaimStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+}
+
+// Sổ cọc chỉ ghi thêm: HOLD giữ cọc · RELEASE nhả · DEDUCT trừ bồi thường · VOID huỷ giao dịch
+enum LedgerEntryType {
+  HOLD
+  RELEASE
+  DEDUCT
+  VOID
+}
+
+// ───────────────────────── Models ─────────────────────────
+
+model User {
+  id           Int       @id @default(autoincrement())
+  email        String    @unique
+  passwordHash String // bcrypt — xem ADR-002
+  fullName     String
+  role         Role      @default(BUYER)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  items           Item[]
+  bookings        Booking[]
+  reports         ConditionReport[]
+  claimsOpened    DamageClaim[]     @relation("ClaimOpener")
+  claimsResolved  DamageClaim[]     @relation("ClaimResolver")
+  reviews         Review[]
+  ledgerEntries   DepositLedger[]
+  audits          AuditLog[]
+}
+
+model Category {
+  id          Int    @id @default(autoincrement())
+  name        String @unique // "Máy ảnh & Quay phim", "Dụng cụ & Sửa chữa", ...
+  description String?
+
+  items          Item[]
+  checklistItems ChecklistTemplateItem[]
+}
+
+model ChecklistTemplateItem {
+  id         Int     @id @default(autoincrement())
+  categoryId Int
+  label      String // "Cảm biến không bụi", "Khóa kéo trơn", ...
+  required   Boolean @default(true)
+
+  category      Category              @relation(fields: [categoryId], references: [id])
+  reportEntries ConditionReportEntry[]
+
+  @@index([categoryId])
+}
+
+model Item {
+  id                   Int        @id @default(autoincrement())
+  ownerId              Int
+  categoryId           Int
+  title                String
+  description          String?
+  replacementValueVnd  Int // giá trị thay thế — nền tính cọc
+  status               ItemStatus @default(ACTIVE)
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+
+  owner         User            @relation(fields: [ownerId], references: [id])
+  category      Category        @relation(fields: [categoryId], references: [id])
+  photos        ItemPhoto[]
+  rateTiers     RateTier[]
+  depositPolicy DepositPolicy?
+  calendarDays  CalendarDay[]
+  bookings      Booking[]
+
+  @@index([ownerId])
+  @@index([categoryId, status])
+}
+
+model ItemPhoto {
+  id         Int     @id @default(autoincrement())
+  itemId     Int
+  url        String
+  isBaseline Boolean @default(false) // ảnh "tình trạng gốc" đối chiếu lúc trả
+
+  item Item @relation(fields: [itemId], references: [id])
+
+  @@index([itemId])
+}
+
+model RateTier {
+  id             Int  @id @default(autoincrement())
+  itemId         Int
+  minDays        Int // >= minDays
+  maxDays        Int? // <= maxDays (null = không chặn trên)
+  pricePerDayVnd Int
+
+  item Item @relation(fields: [itemId], references: [id])
+
+  @@unique([itemId, minDays])
+}
+
+model DepositPolicy {
+  id      Int @id @default(autoincrement())
+  itemId  Int @unique
+  percent Int // % của replacementValueVnd, chặn trên bởi PolicySetting deposit_cap_percent
+
+  item Item @relation(fields: [itemId], references: [id])
+}
+
+// ── Trái tim của app: lịch ngày dạng materialized ──
+// Mỗi (thiết bị, ngày) ĐÚNG MỘT dòng. Ràng buộc @@unique dưới đây là lớp
+// chống đặt chồng cứng ở tầng DB — không logic ứng dụng nào vượt qua được.
+// Xem ADR-003 và doc/data-model.md mục 4.
+model CalendarDay {
+  id        Int             @id @default(autoincrement())
+  itemId    Int
+  date      DateTime        @db.Date
+  kind      CalendarDayKind @default(FREE)
+  bookingId Int? // đặt khi kind = BOOKED; BLOCKED thì null
+
+  item    Item     @relation(fields: [itemId], references: [id])
+  booking Booking? @relation(fields: [bookingId], references: [id])
+
+  @@unique([itemId, date])
+  @@index([itemId, date])
+}
+
+model Booking {
+  id         Int           @id @default(autoincrement())
+  itemId     Int
+  buyerId    Int
+  startDate  DateTime      @db.Date
+  endDate    DateTime      @db.Date // ngày trả, inclusively tính phí
+  status     BookingStatus @default(REQUESTED)
+  totalVnd   Int // snapshot tổng tiền tính từ RateTier lúc đặt
+  depositVnd Int // snapshot tiền cọc lúc đặt
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  item            Item              @relation(fields: [itemId], references: [id])
+  buyer           User              @relation(fields: [buyerId], references: [id])
+  conditionReports ConditionReport[]
+  ledgerEntries   DepositLedger[]
+  claims          DamageClaim[]
+  calendarDays    CalendarDay[]
+  review          Review?
+
+  @@index([buyerId])
+  @@index([itemId, status])
+}
+
+model ConditionReport {
+  id         Int         @id @default(autoincrement())
+  bookingId  Int
+  phase      ReportPhase // PICKUP = lúc nhận · RETURN = lúc trả
+  reporterId Int
+  note       String?
+  createdAt  DateTime    @default(now())
+
+  booking Booking               @relation(fields: [bookingId], references: [id])
+  reporter User                  @relation(fields: [reporterId], references: [id])
+  entries  ConditionReportEntry[]
+
+  // Mỗi booking chỉ có MỘT biên bản nhận và MỘT biên bản trả.
+  @@unique([bookingId, phase])
+}
+
+model ConditionReportEntry {
+  id              Int             @id @default(autoincrement())
+  reportId        Int
+  checklistItemId Int
+  state           ReportItemState
+  note            String?
+  photoUrl        String?
+
+  report        ConditionReport      @relation(fields: [reportId], references: [id])
+  checklistItem ChecklistTemplateItem @relation(fields: [checklistItemId], references: [id])
+
+  // Mỗi mục checklist chỉ ghi MỘT lần trong mỗi biên bản.
+  @@unique([reportId, checklistItemId])
+}
+
+model DamageClaim {
+  id                 Int         @id @default(autoincrement())
+  bookingId          Int
+  openedById         Int
+  status             ClaimStatus @default(OPEN)
+  reason             String // dẫn chiếu mục NOT_OK ở biên bản RETURN
+  amountRequestedVnd Int
+  amountAwardedVnd   Int? // Admin quyết — không vượt depositVnd
+  resolvedById       Int?
+  resolvedAt         DateTime?
+  createdAt          DateTime    @default(now())
+
+  booking  Booking @relation(fields: [bookingId], references: [id])
+  openedBy User    @relation("ClaimOpener", fields: [openedById], references: [id])
+  resolvedBy User?  @relation("ClaimResolver", fields: [resolvedById], references: [id])
+
+  @@index([bookingId])
+  @@index([status])
+}
+
+// Sổ cọc kiểu append-only: mọi biến động tiền cọc là MỘT dòng mới,
+// không bao giờ UPDATE số dư. Sờ chắn được (audit-friendly), giống ADR-004.
+model DepositLedger {
+  id          Int             @id @default(autoincrement())
+  bookingId   Int
+  type        LedgerEntryType
+  amountVnd   Int
+  reason      String
+  createdById Int? // null = hệ thống tự chạy (timer nhả cọc)
+  createdAt   DateTime        @default(now())
+
+  booking  Booking @relation(fields: [bookingId], references: [id])
+  createdBy User?  @relation(fields: [createdById], references: [id])
+
+  @@index([bookingId])
+}
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  bookingId Int      @unique // mỗi lượt thuêClosed chỉ một review
+  authorId  Int
+  rating    Int // 1..5 — validate ở service
+  comment   String?
+  createdAt DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+  author  User    @relation(fields: [authorId], references: [id])
+}
+
+// Cấu hình vận hành — Admin sửa giá trị mà không cần deploy lại (GL-309).
+model PolicySetting {
+  key       String   @id // claim_window_hours | deposit_cap_percent | suspension_threshold
+  value     String
+  note      String?
+  updatedAt DateTime @updatedAt
+}
+
+// Nhật ký hệ thống, append-only: KHÔNG bao giờ UPDATE/DELETE (GL-305).
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  actorId   Int? // null = tác vụ hệ thống (timer, cron)
+  action    String // "booking.approve", "claim.resolve", "ledger.auto_release", ...
+  entity    String // "Booking", "DamageClaim", ...
+  entityId  String?
+  detail    Json?
+  createdAt DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([entity, entityId])
+}
