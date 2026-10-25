@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: gearloop
+          POSTGRES_PASSWORD: gearloop
+          POSTGRES_DB: gearloop_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U gearloop -d gearloop_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgres://gearloop:gearloop@localhost:5432/gearloop_test
+      AUTH_SECRET: ci-secret-not-for-prod
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Prisma generate
+        run: npx prisma generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Sync schema and seed
+        # db push dùng cho giai đoạn chưa có migration đầu tiên.
+        # Sau khi GL-104 merge migration đầu, đổi sang: npx prisma migrate deploy
+        run: |
+          npx prisma db push --skip-generate
+          npm run db:seed
+
+      - name: Build
+        run: npm run build
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test

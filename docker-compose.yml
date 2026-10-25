@@ -1,0 +1,32 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: gearloop
+      POSTGRES_PASSWORD: gearloop
+      POSTGRES_DB: gearloop
+    ports:
+      - "55432:5432" # cổng lạ tránh đụng PostgreSQL 5432 có sẵn trên máy
+    volumes:
+      - gearloop_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gearloop -d gearloop"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    ports:
+      - "4300:3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://gearloop:gearloop@db:5432/gearloop
+      AUTH_SECRET: dev-secret-do-not-use-in-prod
+      PORT: 3000
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  gearloop_pgdata:

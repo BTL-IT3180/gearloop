@@ -1,0 +1,21 @@
+# dependencies
+node_modules/
+
+# next.js build output
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# env — chỉ commit .env.example
+.env
+.env.*
+!.env.example
+
+# misc
+.DS_Store
+coverage/
+*.log
+
+# prisma
+prisma/migrations/dev.db*
