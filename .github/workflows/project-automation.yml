@@ -6,6 +6,8 @@ name: "Project board automation"
 #   - PR opened/reopened/ready   → issue liên kết chuyển "In Review/QA"
 #   - PR merged                  → issue liên kết chuyển "Done"
 # IDs của project + field là node id ổn định — đổi struct board thì phải sửa tại đây.
+# Lưu ý: GraphQL luôn gửi qua jq-variables (không nối chuỗi có dấu `\"` —
+# gh -f ăn lỗi escape, đã xác minh: query mở rộng hợp lệ nhưng gh parse sai).
 
 on:
   workflow_dispatch:
@@ -22,9 +24,9 @@ permissions:
 env:
   PROJECT_ID: "PVT_kwDOFGUMk84Bot8b"
   STATUS_FIELD_ID: "PVTSSF_lADOFGUMk84Bot8bzhnMtbE"
-  OPT_PRODUCT_BACKLOG: "301f8a9f"
-  OPT_REVIEW: "489275f2"
-  OPT_DONE: "99d4a768"
+  OPT_PRODUCT_BACKLOG: "f431a712"
+  OPT_REVIEW: "92ca92aa"
+  OPT_DONE: "21e5d249"
 
 jobs:
   issue-to-backlog:
@@ -37,11 +39,23 @@ jobs:
           ISSUE_NODE: ${{ github.event.issue.node_id }}
           NUMBER: ${{ github.event.issue.number }}
         run: |
-          ITEM=$(gh api graphql -f query="mutation{addProjectV2ItemById(input:{projectId:\"$PROJECT_ID\",contentId:\"$ISSUE_NODE\"}){item{id}}}" --jq '.data.addProjectV2ItemById.item.id' 2>/dev/null || true)
+          gq() { # $1 = query; còn lại: KEY=VALUE (biến GraphQL)
+            Q="$1"; shift; V="{}"
+            for kv in "$@"; do
+              V=$(printf '%s' "$V" | jq --arg k "${kv%%=*}" --arg v "${kv#*=}" '. + {($k):$v}')
+            done
+            printf '{"query":%s,"variables":%s}' "$(jq -Rn --arg q "$Q" '$q')" "$V" > /tmp/q.json
+            curl -s -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/json" https://api.github.com/graphql -X POST --data-binary @/tmp/q.json
+          }
+          ADDQ='mutation($p:ID!,$c:ID!){addProjectV2ItemById(input:{projectId:$p,contentId:$c}){item{id}}}'
+          LOOKQ='query($c:ID!){node(id:$c){... on Issue{projectItems(first:20){nodes{id project{id}}}}}}'
+          SETQ='mutation($p:ID!,$i:ID!,$f:ID!,$o:String!){updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f,value:{singleSelectOptionId:$o}}){projectV2Item{id}}}'
+          ITEM=$(gq "$ADDQ" "p=$PROJECT_ID" "c=$ISSUE_NODE" | jq -r '.data.addProjectV2ItemById.item.id // empty')
           if [ -z "$ITEM" ]; then
-            ITEM=$(gh api graphql -f query="query{node(id:\"$ISSUE_NODE\"){... on Issue{projectItems(first:20){nodes{id project{id}}}}}}" --jq ".data.node.projectItems.nodes[] | select(.project.id==\"$PROJECT_ID\") | .id" | head -1)
+            ITEM=$(gq "$LOOKQ" "c=$ISSUE_NODE" | jq -r --arg p "$PROJECT_ID" '.data.node.projectItems.nodes[] | select(.project.id==$p) | .id' | head -1)
           fi
-          gh api graphql -f query="mutation{updateProjectV2ItemFieldValue(input:{projectId:\"$PROJECT_ID\",itemId:\"$ITEM\",fieldId:\"$STATUS_FIELD_ID\",value:{singleSelectOptionId:\"$OPT_PRODUCT_BACKLOG\"}}){projectV2Item{id}}}" > /dev/null
+          if [ -z "$ITEM" ]; then echo "::error::không tạo được board item cho issue #$NUMBER"; exit 1; fi
+          gq "$SETQ" "p=$PROJECT_ID" "i=$ITEM" "f=$STATUS_FIELD_ID" "o=$OPT_PRODUCT_BACKLOG" > /dev/null
           echo "issue #$NUMBER → Product Backlog (item $ITEM)"
 
   pr-in-review:
@@ -53,14 +67,27 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NODE: ${{ github.event.pull_request.node_id }}
         run: |
-          item_for() {
-            gh api graphql -f query="query{node(id:\"$1\"){... on Issue{projectItems(first:20){nodes{id project{id}}}}}}" --jq ".data.node.projectItems.nodes[] | select(.project.id==\"$PROJECT_ID\") | .id" | head -1
+          gq() {
+            Q="$1"; shift; V="{}"
+            for kv in "$@"; do
+              V=$(printf '%s' "$V" | jq --arg k "${kv%%=*}" --arg v "${kv#*=}" '. + {($k):$v}')
+            done
+            printf '{"query":%s,"variables":%s}' "$(jq -Rn --arg q "$Q" '$q')" "$V" > /tmp/q.json
+            curl -s -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/json" https://api.github.com/graphql -X POST --data-binary @/tmp/q.json
           }
-          setf() {
-            gh api graphql -f query="mutation{updateProjectV2ItemFieldValue(input:{projectId:\"$PROJECT_ID\",itemId:\"$1\",fieldId:\"$STATUS_FIELD_ID\",value:{singleSelectOptionId:\"$OPT_REVIEW\"}}){projectV2Item{id}}}" > /dev/null
-          }
-          ISSUES=$(gh api graphql -f query="query{node(id:\"$PR_NODE\"){... on PullRequest{closingIssuesReferences(first:10){nodes{id}}}}}" --jq '.data.node.closingIssuesReferences.nodes[].id')
-          for I in $ISSUES; do ITEM=$(item_for "$I"); [ -n "$ITEM" ] && setf "$ITEM" && echo "→ In Review/QA: $I"; done
+          ISSUESQ='query($c:ID!){node(id:$c){... on PullRequest{closingIssuesReferences(first:10){nodes{id}}}}}'
+          LOOKQ='query($c:ID!){node(id:$c){... on Issue{projectItems(first:20){nodes{id project{id}}}}}}'
+          SETQ='mutation($p:ID!,$i:ID!,$f:ID!,$o:String!){updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f,value:{singleSelectOptionId:$o}}){projectV2Item{id}}}'
+          ISSUES=$(gq "$ISSUESQ" "c=$PR_NODE" | jq -r '.data.node.closingIssuesReferences.nodes[].id // empty')
+          for I in $ISSUES; do
+            ITEM=$(gq "$LOOKQ" "CONTENT_ID=$I" | jq -r --arg p "$PROJECT_ID" '.data.node.projectItems.nodes[] | select(.project.id==$p) | .id' | head -1)
+            if [ -n "$ITEM" ]; then
+              gq "$SETQ" "p=$PROJECT_ID" "i=$ITEM" "f=$STATUS_FIELD_ID" "o=$OPT_REVIEW" > /dev/null
+              echo "→ In Review/QA: $I"
+            else
+              echo "::warning::issue $I chưa có trên board — bỏ qua"
+            fi
+          done
 
   pr-merged:
     if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
@@ -71,11 +98,24 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NODE: ${{ github.event.pull_request.node_id }}
         run: |
-          item_for() {
-            gh api graphql -f query="query{node(id:\"$1\"){... on Issue{projectItems(first:20){nodes{id project{id}}}}}}" --jq ".data.node.projectItems.nodes[] | select(.project.id==\"$PROJECT_ID\") | .id" | head -1
+          gq() {
+            Q="$1"; shift; V="{}"
+            for kv in "$@"; do
+              V=$(printf '%s' "$V" | jq --arg k "${kv%%=*}" --arg v "${kv#*=}" '. + {($k):$v}')
+            done
+            printf '{"query":%s,"variables":%s}' "$(jq -Rn --arg q "$Q" '$q')" "$V" > /tmp/q.json
+            curl -s -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/json" https://api.github.com/graphql -X POST --data-binary @/tmp/q.json
           }
-          setf() {
-            gh api graphql -f query="mutation{updateProjectV2ItemFieldValue(input:{projectId:\"$PROJECT_ID\",itemId:\"$1\",fieldId:\"$STATUS_FIELD_ID\",value:{singleSelectOptionId:\"$OPT_DONE\"}}){projectV2Item{id}}}" > /dev/null
-          }
-          ISSUES=$(gh api graphql -f query="query{node(id:\"$PR_NODE\"){... on PullRequest{closingIssuesReferences(first:10){nodes{id}}}}}" --jq '.data.node.closingIssuesReferences.nodes[].id')
-          for I in $ISSUES; do ITEM=$(item_for "$I"); [ -n "$ITEM" ] && setf "$ITEM" && echo "→ Done: $I"; done
+          ISSUESQ='query($c:ID!){node(id:$c){... on PullRequest{closingIssuesReferences(first:10){nodes{id}}}}}'
+          LOOKQ='query($c:ID!){node(id:$c){... on Issue{projectItems(first:20){nodes{id project{id}}}}}}'
+          SETQ='mutation($p:ID!,$i:ID!,$f:ID!,$o:String!){updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f,value:{singleSelectOptionId:$o}}){projectV2Item{id}}}'
+          ISSUES=$(gq "$ISSUESQ" "c=$PR_NODE" | jq -r '.data.node.closingIssuesReferences.nodes[].id // empty')
+          for I in $ISSUES; do
+            ITEM=$(gq "$LOOKQ" "CONTENT_ID=$I" | jq -r --arg p "$PROJECT_ID" '.data.node.projectItems.nodes[] | select(.project.id==$p) | .id' | head -1)
+            if [ -n "$ITEM" ]; then
+              gq "$SETQ" "p=$PROJECT_ID" "i=$ITEM" "f=$STATUS_FIELD_ID" "o=$OPT_DONE" > /dev/null
+              echo "→ Done: $I"
+            else
+              echo "::warning::issue $I chưa có trên board — bỏ qua"
+            fi
+          done
