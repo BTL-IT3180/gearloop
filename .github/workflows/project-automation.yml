@@ -17,9 +17,10 @@ on:
     types: [opened, reopened, ready_for_review, closed]
 
 permissions:
-  issues: read
-  pull-requests: read
+  issues: write
+  pull-requests: write
   repository-projects: write
+  contents: read
 
 env:
   PROJECT_ID: "PVT_kwDOFGUMk84BouW7"
