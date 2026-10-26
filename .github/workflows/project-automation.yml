@@ -35,7 +35,7 @@ jobs:
     steps:
       - name: Thêm issue vào board ở cột Product Backlog
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PROJECT_PAT || secrets.GITHUB_TOKEN }}
           ISSUE_NODE: ${{ github.event.issue.node_id }}
           NUMBER: ${{ github.event.issue.number }}
         run: |
@@ -60,7 +60,7 @@ jobs:
     steps:
       - name: Chuyển issue liên kết PR sang In Review/QA
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PROJECT_PAT || secrets.GITHUB_TOKEN }}
           PR_NODE: ${{ github.event.pull_request.node_id }}
         run: |
           gq() {
@@ -85,7 +85,7 @@ jobs:
     steps:
       - name: Chuyển issue liên kết PR sang Done khi merge
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PROJECT_PAT || secrets.GITHUB_TOKEN }}
           PR_NODE: ${{ github.event.pull_request.node_id }}
         run: |
           gq() {
