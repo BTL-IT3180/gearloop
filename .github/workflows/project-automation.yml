@@ -8,6 +8,7 @@ name: "Project board automation"
 # IDs của project + field là node id ổn định — đổi struct board thì phải sửa tại đây.
 
 on:
+  workflow_dispatch:
   issues:
     types: [opened, reopened]
   pull_request:
