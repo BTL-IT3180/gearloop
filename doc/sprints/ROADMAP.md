@@ -39,7 +39,7 @@ Chi tiết từng story: [sprint-1.md](./sprint-1.md) (các sprint sau do PO c�
 
 ## Working agreement — GitHub Projects board
 
-Project **GearLoop Scrum Board** (`https://github.com/users/vacpls/projects/2`) quản lý trạng thái bằng 1 field duy nhất:
+Project **GearLoop Scrum Board** (org project `https://github.com/orgs/BTL-IT3180/projects/5` — GITHUB_TOKEN chỉ tự động hoá được project org) quản lý trạng thái bằng 1 field duy nhất:
 
 **Status (6 cột, theo thứ tự luồng):** `Product Backlog → Ready for Sprint → To Do → In Progress → In Review/QA → Done`
 
