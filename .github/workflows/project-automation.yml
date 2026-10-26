@@ -44,8 +44,10 @@ jobs:
             jq -n --arg q "$Q" '{query:$q}' > /tmp/q.json
             curl -s -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/json" https://api.github.com/graphql -X POST --data-binary @/tmp/q.json
           }
-          ITEM=$(gq 'mutation{addProjectV2ItemById(input:{projectId:"%s",contentId:"%s"}){item{id}}}' "$PROJECT_ID" "$ISSUE_NODE" | jq -r '.data.addProjectV2ItemById.item.id // empty')
+          RESP=$(gq 'mutation{addProjectV2ItemById(input:{projectId:"%s",contentId:"%s"}){item{id}}}' "$PROJECT_ID" "$ISSUE_NODE")
+          ITEM=$(echo "$RESP" | jq -r '.data.addProjectV2ItemById.item.id // empty')
           if [ -z "$ITEM" ]; then
+            echo "RAW_ADD_RESP: $(echo "$RESP" | head -c 800)"
             ITEM=$(gq 'query{node(id:"%s"){... on Issue{projectItems(first:20){nodes{id project{id}}}}}}' "$ISSUE_NODE" | jq -r --arg p "$PROJECT_ID" '.data.node.projectItems.nodes[] | select(.project.id==$p) | .id' | head -1)
           fi
           if [ -z "$ITEM" ]; then echo "::error::không tạo được board item cho issue #$NUMBER"; exit 1; fi
