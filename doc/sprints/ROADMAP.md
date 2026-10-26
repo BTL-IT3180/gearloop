@@ -69,16 +69,18 @@ Nghĩa vụ của người làm story: kéo **To Do → In Progress** khi bắt 
 
 Khoá học gốc dựng bằng GitHub Projects đời cũ; dưới đây là bản hiện đại hoá lên Projects v2 đã cấu hình xong trên repo + org project này.
 
-### Cấu trúc work item — 2 tầng, story là nơi tổng hợp
+### Cấu trúc work item — story là nơi tổng hợp, task sub-issue là tùy chọn
 
 ```mermaid
 graph TD
   E["EPIC #20–22 (type:epic)"] --> S1["USER STORY #1–9 (type:story) — item trên Scrum Board"]
+  S1 -. "tùy chọn, khi cần chia việc" .-> T["TASK — đặt tên `[GL-xxx] <mô tả AC>` — không lên board"]
 ```
 
-- **Story** = đơn vị công việc DUY NHẤT cần theo dõi: **checklist AC ngay trong body story chính là task list** — tick trực tiếp khi làm xong, không tách issue con.
+- **Story** = đơn vị theo dõi chính: **checklist AC trong body story là nguồn sự thật** — tick trực tiếp khi làm xong.
+- **Task sub-issue** chỉ mở khi story cần chia việc nhỏ (ví dụ #55–57 của GL-107). Quy tắc đặt tên: `[GL-xxx] <mô tả AC>` — dùng đúng thuật ngữ hồ sơ (Item · Booking · DepositTransaction · ConditionReport · Người thuê/Chủ đồ/Quản trị viên); body dẫn về story; **không đưa lên board**; xong → tick AC trong story rồi đóng task.
 - **Epic** = cụm story cùng pod (A/B/D), link sub-issues để thấy tiến độ tổng; không có estimate.
-- Quyết định 26/10: đã xoá 25 issue-task tách riêng (trùng lặp 1:1 với checklist AC trong story, gây nhiễu Issues tab). Story mới viết theo template — AC viết testable là đủ.
+- Quyết định 26/10: xoá 25 task trùng AC (không prefix, không truy vết về story). Task mở lại sau này PHẢI theo convention ở trên.
 
 ### Labels (repo) — 2 trục
 
