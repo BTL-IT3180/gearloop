@@ -64,3 +64,48 @@ Project **GearLoop Scrum Board** (org project `https://github.com/orgs/BTL-IT318
 - PR merge → **Done**.
 
 Nghĩa vụ của người làm story: kéo **To Do → In Progress** khi bắt đầu, **In Progress → In Review/QA** sẽ tự khi mở PR — không tự kéo sang Done, để merge tự chuyển.
+
+## Operating manual — chuẩn hoá theo khoá học "Scrum with GitHub Projects" (Benjamin Day)
+
+Khoá học gốc dựng bằng GitHub Projects đời cũ; dưới đây là bản hiện đại hoá lên Projects v2 đã cấu hình xong trên repo + org project này.
+
+### Cấu trúc work item (sub-issues — thay cho "tasks" nối tay trong khoá học)
+
+```mermaid
+graph TD
+  E["EPIC #20–22 (type:epic)"] --> S1["USER STORY #1–9 (type:story) — là item trên Scrum Board"]
+  S1 --> T["TASK (type:task) — 1 task = 1 acceptance criterion của story"]
+```
+
+- **Epic** = cụm story cùng pod (A/B/D), có `Sub-issues progress` rollup trên board.
+- **Story** = item duy nhất xuất hiện trên board; AC trong story là nguồn sự thật.
+- **Task** = 1 dòng AC tách ra để làm; KHÔNG đưa lên board (tránh nhiễu) — xoá/tick task khi xong AC.
+
+### Labels (repo) — 2 trục
+
+| Nhóm | Giá trị | Dùng cho |
+|---|---|---|
+| Loại | `type:epic` · `type:story` · `type:task` · `type:chore` · `bug` · `documentation` | Phân loại work item |
+| Pod | `area:auth-ci` · `area:domain-schema` · `area:transaction-admin` · `area:qa-docs` | Khớp 1:1 với field `Area pod` trên board |
+| Trạng thái | `blocked` (ghi issue chặn trong body) |flags ngoài board |
+
+### Sprint = Milestone (repo) + Iteration (board)
+
+- Milestone `Sprint 1…6` (due 2/11 → 7/12, cách nhau 7 ngày) — dùng lọc repo-level; **9 story S1 đã gắn Sprint 1**.
+- Khi field **Sprint (iteration)** được tạo trên board (xem UI checklist dưới) — iteration là nguồn sự thật cho view `@current`; milestone giữ lại để lọc trong repo/PR list.
+
+### Views board (8): 4 view chuẩn + 4 view pod
+
+`Product Backlog` · `Current Sprint` (board) · `Next Sprint` · `Daily Standup` — xem bảng ở trên.
+Mới: `Pod A—D` (table, lọc `area:<pod> -status:Done`) — mỗi pod mở đúng view của mình trong standup.
+
+### Checklist UI (tính năng Projects v2 không tạo được qua API — ~5 phút một lần)
+
+1. **Field iteration `Sprint`**: board → `+ New field` → Iteration · start 27/10 · 7 ngày · 8 iterations → bulk set 9 story = S1 → group-by 4 view (Current/Next/Standup + Product Backlog group Status).
+2. **Insights**: New insight → chart X=Status, Y=Count cho burn-down; chart 2: X=Sprint, Y=Estimate sum cho velocity.
+3. **Org project template**: Settings org → Projects → Templates → *New from project* → chọn GearLoop Scrum Board (sau khi board hoàn chỉnh).
+4. **CODEOWNERS + teams pod**: tạo sau khi có username của 4 thành viên (tránh blocker review khi team rỗng).
+
+### Automation — trạng thái
+
+Workflow `project-automation.yml` đã chuẩn (issue→Backlog, PR→In Review/QA, merge→Done) nhưng **GITHUB_TOKEN không ghi được Projects v2** (giới hạn của GitHub, không phụ thuộc policy org). Cần secret `PROJECT_PAT` (fine-grained PAT chỉ có quyền Projects:write) — workflow đã wire sẵn `${{ secrets.PROJECT_PAT || secrets.GITHUB_TOKEN }}`.

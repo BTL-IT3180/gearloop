@@ -1,6 +1,6 @@
 name: "User Story"
 description: "Một story có thể giao cho 1 pod, hoàn thành trong ≤ 1 ngày kể cả review"
-labels: ["feature"]
+labels: ["type:story"]
 body:
   - type: dropdown
     id: role

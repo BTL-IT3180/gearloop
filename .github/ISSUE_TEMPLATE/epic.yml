@@ -1,0 +1,36 @@
+name: "Epic"
+description: "Cụm story cùng pod — parent chứa các user story dưới dạng sub-issues"
+labels: ["type:epic"]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Mục tiêu epic
+      description: "Kết quả ĐO ĐƯỢC khi epic xong — gắn với goal của ít nhất 1 sprint"
+      placeholder: "Demo được: admin tạo seller → seller login → buyer bị 403 ở route sai vai trò"
+    validations:
+      required: true
+  - type: textarea
+    id: stories
+    attributes:
+      label: Stories con (sub-issues)
+      description: "Liệt kê #số-issue của từng story. Sau khi tạo epic, add sub-issues ở panel phải của issue."
+      placeholder: |
+        - [ ] #12 GL-101
+        - [ ] #13 GL-102
+    validations:
+      required: true
+  - type: textarea
+    id: dod
+    attributes:
+      label: Definition of Done của epic
+      placeholder: "- [ ] 100% story con Done\n- [ ] Demo end-to-end trên production URL\n- [ ] Docs cập nhật"
+    validations:
+      required: true
+  - type: dropdown
+    id: pod
+    attributes:
+      label: Area pod
+      options: ["Auth & CI", "Domain & Schema", "Transaction & Admin", "QA & Docs"]
+    validations:
+      required: true
