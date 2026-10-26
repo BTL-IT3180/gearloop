@@ -34,8 +34,16 @@ body:
   - type: dropdown
     id: pod
     attributes:
-      label: Pod phụ trách
-      options: ["A (auth/CI)", "B (domain/schema)", "C (transaction/admin)", "D (QA/docs)"]
+      label: Area pod
+      options: ["Auth & CI", "Domain & Schema", "Transaction & Admin", "QA & Docs"]
+      multiple: true
+    validations:
+      required: true
+  - type: dropdown
+    id: estimate
+    attributes:
+      label: Estimate (story points — Fibonacci)
+      options: ["1", "2", "3", "5", "8", "13"]
     validations:
       required: true
   - type: textarea

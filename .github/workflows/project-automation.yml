@@ -1,0 +1,80 @@
+name: "Project board automation"
+
+# Scrum board tự động hoá (mirror các built-in workflows của GitHub Projects,
+# nhưng version-controlled và chạy với GITHUB_TOKEN):
+#   - issue opened/reopened      → vào board ở cột "Product Backlog"
+#   - PR opened/reopened/ready   → issue liên kết chuyển "In Review/QA"
+#   - PR merged                  → issue liên kết chuyển "Done"
+# IDs của project + field là node id ổn định — đổi struct board thì phải sửa tại đây.
+
+on:
+  issues:
+    types: [opened, reopened]
+  pull_request:
+    types: [opened, reopened, ready_for_review, closed]
+
+permissions:
+  issues: read
+  pull-requests: read
+  projects: write
+
+env:
+  PROJECT_ID: "PVT_kwDOFGUMk84Bot8b"
+  STATUS_FIELD_ID: "PVTSSF_lADOFGUMk84Bot8bzhnMtbE"
+  OPT_PRODUCT_BACKLOG: "301f8a9f"
+  OPT_REVIEW: "489275f2"
+  OPT_DONE: "99d4a768"
+
+jobs:
+  issue-to-backlog:
+    if: github.event_name == 'issues'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Thêm issue vào board ở cột Product Backlog
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NODE: ${{ github.event.issue.node_id }}
+          NUMBER: ${{ github.event.issue.number }}
+        run: |
+          ITEM=$(gh api graphql -f query="mutation{addProjectV2ItemById(input:{projectId:\"$PROJECT_ID\",contentId:\"$ISSUE_NODE\"}){item{id}}}" --jq '.data.addProjectV2ItemById.item.id' 2>/dev/null || true)
+          if [ -z "$ITEM" ]; then
+            ITEM=$(gh api graphql -f query="query{node(id:\"$ISSUE_NODE\"){... on Issue{projectItems(first:20){nodes{id project{id}}}}}}" --jq ".data.node.projectItems.nodes[] | select(.project.id==\"$PROJECT_ID\") | .id" | head -1)
+          fi
+          gh api graphql -f query="mutation{updateProjectV2ItemFieldValue(input:{projectId:\"$PROJECT_ID\",itemId:\"$ITEM\",fieldId:\"$STATUS_FIELD_ID\",value:{singleSelectOptionId:\"$OPT_PRODUCT_BACKLOG\"}}){projectV2Item{id}}}" > /dev/null
+          echo "issue #$NUMBER → Product Backlog (item $ITEM)"
+
+  pr-in-review:
+    if: github.event_name == 'pull_request' && (github.event.action == 'opened' || github.event.action == 'reopened' || github.event.action == 'ready_for_review')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chuyển issue liên kết PR sang In Review/QA
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NODE: ${{ github.event.pull_request.node_id }}
+        run: |
+          item_for() {
+            gh api graphql -f query="query{node(id:\"$1\"){... on Issue{projectItems(first:20){nodes{id project{id}}}}}}" --jq ".data.node.projectItems.nodes[] | select(.project.id==\"$PROJECT_ID\") | .id" | head -1
+          }
+          setf() {
+            gh api graphql -f query="mutation{updateProjectV2ItemFieldValue(input:{projectId:\"$PROJECT_ID\",itemId:\"$1\",fieldId:\"$STATUS_FIELD_ID\",value:{singleSelectOptionId:\"$OPT_REVIEW\"}}){projectV2Item{id}}}" > /dev/null
+          }
+          ISSUES=$(gh api graphql -f query="query{node(id:\"$PR_NODE\"){... on PullRequest{closingIssuesReferences(first:10){nodes{id}}}}}" --jq '.data.node.closingIssuesReferences.nodes[].id')
+          for I in $ISSUES; do ITEM=$(item_for "$I"); [ -n "$ITEM" ] && setf "$ITEM" && echo "→ In Review/QA: $I"; done
+
+  pr-merged:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chuyển issue liên kết PR sang Done khi merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NODE: ${{ github.event.pull_request.node_id }}
+        run: |
+          item_for() {
+            gh api graphql -f query="query{node(id:\"$1\"){... on Issue{projectItems(first:20){nodes{id project{id}}}}}}" --jq ".data.node.projectItems.nodes[] | select(.project.id==\"$PROJECT_ID\") | .id" | head -1
+          }
+          setf() {
+            gh api graphql -f query="mutation{updateProjectV2ItemFieldValue(input:{projectId:\"$PROJECT_ID\",itemId:\"$1\",fieldId:\"$STATUS_FIELD_ID\",value:{singleSelectOptionId:\"$OPT_DONE\"}}){projectV2Item{id}}}" > /dev/null
+          }
+          ISSUES=$(gh api graphql -f query="query{node(id:\"$PR_NODE\"){... on PullRequest{closingIssuesReferences(first:10){nodes{id}}}}}" --jq '.data.node.closingIssuesReferences.nodes[].id')
+          for I in $ISSUES; do ITEM=$(item_for "$I"); [ -n "$ITEM" ] && setf "$ITEM" && echo "→ Done: $I"; done

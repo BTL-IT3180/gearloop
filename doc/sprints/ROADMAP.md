@@ -36,3 +36,31 @@ production → tác giả smoke test + screenshot trong PR.
 
 Sprint chỉ xong khi URL production chạy được goal của sprint end-to-end.
 Chi tiết từng story: [sprint-1.md](./sprint-1.md) (các sprint sau do PO cập nhật sau planning).
+
+## Working agreement — GitHub Projects board
+
+Project **GearLoop Scrum Board** (`https://github.com/users/vacpls/projects/2`) quản lý trạng thái bằng 1 field duy nhất:
+
+**Status (6 cột, theo thứ tự luồng):** `Product Backlog → Ready for Sprint → To Do → In Progress → In Review/QA → Done`
+
+- Mỗi issue có **Area pod** (4 pod), **Priority** (Urgent/High/Medium/Low), **Estimate** (Fibonacci 1/2/3/5/8/13) và **Sprint** (iteration 7 ngày, bắt đầu 27/10/2026).
+- **Sprint mặc định cho story mới = "Ready for Sprint"** (đã backlog-refined, đủ AC + estimate, chờ planning gắn Sprint).
+- Không dùng nhãn trạng thái trùng lặp trên issue — Status trên board là nguồn sự thật duy nhất.
+- Story tạo từ template luôn có Estimate + Area pod → không story nào "to" hơn 1 ngày; vượt → tách story ở grooming.
+
+**4 view chuẩn (đã tạo sẵn):**
+
+| View | Layout | Filter | Dùng khi |
+|---|---|---|---|
+| Product Backlog | Table | `-Sprint:@current -status:Done` | Grooming, xếp hạng backlog |
+| Current Sprint | Board (cột = Status) | `Sprint:@current` | Làm việc hằng ngày trong sprint |
+| Next Sprint | Table | `Sprint:@current+1` | Chuẩn bị planning đầu sprint mới |
+| Daily Standup | Table | `Sprint:@current` | Daily 10–15′, group theo Assignee |
+
+**Tự động hoá** (`.github/workflows/project-automation.yml`, dùng `GITHUB_TOKEN`):
+
+- Issue mới/reopen → tự vào board cột **Product Backlog**.
+- PR mở/ready (issues được link qua `Closes #n`) → **In Review/QA**.
+- PR merge → **Done**.
+
+Nghĩa vụ của người làm story: kéo **To Do → In Progress** khi bắt đầu, **In Progress → In Review/QA** sẽ tự khi mở PR — không tự kéo sang Done, để merge tự chuyển.
