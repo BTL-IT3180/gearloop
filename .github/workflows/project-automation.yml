@@ -17,7 +17,7 @@ on:
 permissions:
   issues: read
   pull-requests: read
-  projects: write
+  repository-projects: write
 
 env:
   PROJECT_ID: "PVT_kwDOFGUMk84Bot8b"
