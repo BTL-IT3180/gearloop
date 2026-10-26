@@ -69,18 +69,15 @@ Nghĩa vụ của người làm story: kéo **To Do → In Progress** khi bắt 
 
 Khoá học gốc dựng bằng GitHub Projects đời cũ; dưới đây là bản hiện đại hoá lên Projects v2 đã cấu hình xong trên repo + org project này.
 
-### Cấu trúc work item — story là nơi tổng hợp, task sub-issue là tùy chọn
+### Work tracking — không chia issue
 
-```mermaid
-graph TD
-  E["EPIC #20–22 (type:epic)"] --> S1["USER STORY #1–9 (type:story) — item trên Scrum Board"]
-  S1 -. "tùy chọn, khi cần chia việc" .-> T["TASK — đặt tên `[GL-xxx] <mô tả AC>` — không lên board"]
-```
+Quyết định 26/10 (bỏ hoàn toàn cấu trúc chia issue Epic→Story→Task sau 2 lần dọn):
 
-- **Story** = đơn vị theo dõi chính: **checklist AC trong body story là nguồn sự thật** — tick trực tiếp khi làm xong.
-- **Task sub-issue** chỉ mở khi story cần chia việc nhỏ (ví dụ #55–57 của GL-107). Quy tắc đặt tên: `[GL-xxx] <mô tả AC>` — dùng đúng thuật ngữ hồ sơ (Item · Booking · DepositTransaction · ConditionReport · Người thuê/Chủ đồ/Quản trị viên); body dẫn về story; **không đưa lên board**; xong → tick AC trong story rồi đóng task.
-- **Epic** = cụm story cùng pod (A/B/D), link sub-issues để thấy tiến độ tổng; không có estimate.
-- Quyết định 26/10: xoá 25 task trùng AC (không prefix, không truy vết về story). Task mở lại sau này PHẢI theo convention ở trên.
+- **Kế hoạch sprint = `sprint-1.md`** (story + AC + nhịp ngày) — nguồn sự thật duy nhất về phạm vi.
+- **Issues tab để trống**, chỉ mở issue khi có **bug thật** (dùng template `bug_report.yml`).
+- **Scrum Board** giữ nguyên hạ tầng (Status 6 cột · Area · Priority · Estimate · 8 views · automation) — item chỉ thêm vào khi nhóm quyết định tracking lại trên board.
+- Milestone Sprint 1–6 giữ lại để gắn PR/issue sau này; Dependabot PR chạy độc lập.
+- Automation `project-automation.yml` ở trạng thái ngủ — sống lại khi có `PROJECT_PAT` và issue mới.
 
 ### Labels (repo) — 2 trục
 
