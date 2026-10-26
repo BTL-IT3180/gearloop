@@ -69,23 +69,22 @@ Nghĩa vụ của người làm story: kéo **To Do → In Progress** khi bắt 
 
 Khoá học gốc dựng bằng GitHub Projects đời cũ; dưới đây là bản hiện đại hoá lên Projects v2 đã cấu hình xong trên repo + org project này.
 
-### Cấu trúc work item (sub-issues — thay cho "tasks" nối tay trong khoá học)
+### Cấu trúc work item — 2 tầng, story là nơi tổng hợp
 
 ```mermaid
 graph TD
-  E["EPIC #20–22 (type:epic)"] --> S1["USER STORY #1–9 (type:story) — là item trên Scrum Board"]
-  S1 --> T["TASK (type:task) — 1 task = 1 acceptance criterion của story"]
+  E["EPIC #20–22 (type:epic)"] --> S1["USER STORY #1–9 (type:story) — item trên Scrum Board"]
 ```
 
-- **Epic** = cụm story cùng pod (A/B/D), có `Sub-issues progress` rollup trên board.
-- **Story** = item duy nhất xuất hiện trên board; AC trong story là nguồn sự thật.
-- **Task** = 1 dòng AC tách ra để làm; KHÔNG đưa lên board (tránh nhiễu) — xoá/tick task khi xong AC.
+- **Story** = đơn vị công việc DUY NHẤT cần theo dõi: **checklist AC ngay trong body story chính là task list** — tick trực tiếp khi làm xong, không tách issue con.
+- **Epic** = cụm story cùng pod (A/B/D), link sub-issues để thấy tiến độ tổng; không có estimate.
+- Quyết định 26/10: đã xoá 25 issue-task tách riêng (trùng lặp 1:1 với checklist AC trong story, gây nhiễu Issues tab). Story mới viết theo template — AC viết testable là đủ.
 
 ### Labels (repo) — 2 trục
 
 | Nhóm | Giá trị | Dùng cho |
 |---|---|---|
-| Loại | `type:epic` · `type:story` · `type:task` · `type:chore` · `bug` · `documentation` | Phân loại work item |
+| Loại | `type:epic` · `type:story` · `type:chore` · `bug` · `documentation` | Phân loại work item |
 | Pod | `area:auth-ci` · `area:domain-schema` · `area:transaction-admin` · `area:qa-docs` | Khớp 1:1 với field `Area pod` trên board |
 | Trạng thái | `blocked` (ghi issue chặn trong body) |flags ngoài board |
 
