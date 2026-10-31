@@ -19,3 +19,6 @@ coverage/
 
 # prisma
 prisma/migrations/dev.db*
+
+#test db
+.env.test
