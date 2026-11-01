@@ -79,15 +79,16 @@ npx prisma migrate deploy
   riêng: đổi enum HOLD thành DEPOSIT_HELD, backfill eventKey theo sự kiện thực tế,
   rà soát lịch/cọc sai trước khi thêm ràng buộc. Không tự đánh dấu migration đã
   áp dụng khi các CHECK/trigger chưa được cài.
-- Ledger được bảo vệ append-only ở DB: seed dùng DELETE sẽ bị chặn khi đã có
-  ledger. Chỉ seed DB local/test trống; không vô hiệu trigger trên DB dùng chung.
-- Theo quyết định trong lượt sửa E0-F1-T3, giữ nguyên seed/Docker. Docker luôn
-  chạy seed trước khi start nên **khởi động app sẽ thất bại nếu DB đã có ledger**.
-  Cần task riêng cho bootstrap không phá dữ liệu; không tự sửa trong phạm vi này.
-- Follow-up bảo vệ AuditLog append-only: seed cũng bị chặn nếu đã có audit log.
-  Wipe không transaction, nên có thể xóa một phần dữ liệu trước khi bị chặn.
-  Không seed DB có dữ liệu cần giữ. Migration mới backfill thời điểm trả chỉ
-  từ biên bản RETURN; RETURNED thiếu chứng cứ bị chặn, cần DB OWNER xử lý.
+- Sau review E0-F1-T3, seed kiểm tra Booking/DepositLedger/AuditLog trước khi
+  wipe. Có dữ liệu ở bất kỳ bảng nào thì bỏ qua và exit 0, để Docker tiếp tục
+  chạy app. Không xóa hoặc vô hiệu trigger của ledger/audit.
+- Nếu cả ba bảng trống, wipe và nạp mẫu chạy trong transaction SERIALIZABLE;
+  lỗi thật rollback toàn bộ và exit 1. CalendarDay được xóa trước Booking.
+  Lệnh Docker không đổi. Seed vẫn tái tạo tài khoản/danh mục/tin mẫu khi chưa
+  có dữ liệu nghiệp vụ; không dùng seed để reset giao dịch.
+- Migration backfill thời điểm trả chỉ từ biên bản RETURN; RETURNED thiếu chứng
+  cứ bị chặn, cần DB OWNER xử lý. Migration bổ sung FK user dùng RESTRICT:
+  không hard-delete user có lịch sử, dùng isActive để khóa/mở tài khoản.
 - Không tự ý sửa schema, tạo migration hoặc thay đổi quy trình database ngoài phạm vi issue được giao và quyền hạn được phân công.
 
 ## 3. Môi trường

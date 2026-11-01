@@ -27,6 +27,17 @@ READ COMMITTED và REPEATABLE READ; CHECK tiền/ngày; audit append-only;
 tier liền kề/chồng/mở và tương tranh; tiền snapshot bất biến; returnedAt cố định;
 snapshot checklist không bị sửa theo template và từ chối checklist khác category.
 
+Review bổ sung: test ledger/tier dùng barrier giữ writer thứ nhất sau INSERT,
+quan sát `pg_blocking_pids()` cho đến khi writer thứ hai bị chính writer đó chặn,
+rồi mới commit. Không dùng kết quả Promise.allSettled đơn thuần để chứng minh lock.
+Raw SQL assert SQLSTATE 23514/23505/40001; FK user assert 23503. Prisma 6.19 trả
+lỗi CHECK từ model API trong UnknownRequestError, nên assert SQLSTATE 23514
+trong lỗi connector; unique/serialization từ model API assert P2002/P2034.
+
+`tests/seed.test.ts` chạy script seed thật trên schema riêng: seed/reseed mẫu,
+audit-only, booking có ngày BOOKED nhưng chưa có ledger, ledger đã ghi, và nạp
+mẫu lỗi giữa chừng. Kiểm tra exit code và dữ liệu trước/sau, không mock DB.
+
 ## 2. Kế hoạch mở rộng theo sprint
 
 | Sprint | Thêm test |

@@ -73,6 +73,48 @@ function entry(bookingId: number, type: Prisma.DepositLedgerCreateManyInput["typ
   return { bookingId, type, amountVnd, eventKey, reason: "Schema integrity test" };
 }
 
+// Observe the actual PostgreSQL lock before committing the first writer. A
+// trigger without serialization must fail this test, even if it rejects tx2 later.
+async function contendWithLock(
+  firstWrite: (tx: Prisma.TransactionClient) => Promise<unknown>,
+  secondWrite: (tx: Prisma.TransactionClient) => Promise<unknown>,
+  isolationLevel: Prisma.TransactionIsolationLevel,
+) {
+  let firstStarted!: (pid: number) => void;
+  let secondStarted!: (pid: number) => void;
+  let releaseFirst!: () => void;
+  const firstReady = new Promise<number>((resolve) => { firstStarted = resolve; });
+  const secondReady = new Promise<number>((resolve) => { secondStarted = resolve; });
+  const released = new Promise<void>((resolve) => { releaseFirst = resolve; });
+  const first = db.$transaction(async (tx) => {
+    const [{ pid }] = await tx.$queryRaw<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`;
+    await firstWrite(tx);
+    firstStarted(pid);
+    await released;
+  }, { isolationLevel, timeout: 10_000 });
+  let second: Promise<unknown> | undefined;
+  let outcomes: PromiseSettledResult<unknown>[] = [];
+  try {
+    const firstPid = await Promise.race([firstReady, first.then(() => { throw new Error("First writer ended before barrier"); })]);
+    second = db.$transaction(async (tx) => {
+      const [{ pid }] = await tx.$queryRaw<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`;
+      secondStarted(pid);
+      return secondWrite(tx);
+    }, { isolationLevel, timeout: 10_000 });
+    const secondPid = await Promise.race([secondReady, second.then(() => { throw new Error("Second writer ended before barrier"); })]);
+    await expect.poll(async () => {
+      const [{ blocked }] = await db.$queryRaw<{ blocked: boolean }[]>`
+        SELECT ${firstPid}::int = ANY(pg_blocking_pids(${secondPid}::int)) AS blocked`;
+      return blocked;
+    }, { timeout: 3_000, interval: 25 }).toBe(true);
+  } finally {
+    releaseFirst();
+    outcomes = await Promise.allSettled(second ? [first, second] : [first]);
+  }
+  expect(outcomes[0]).toMatchObject({ status: "fulfilled" });
+  return outcomes[1];
+}
+
 describe("CalendarDay booking relationship", () => {
   it.each([Prisma.TransactionIsolationLevel.ReadCommitted, Prisma.TransactionIsolationLevel.RepeatableRead])(
     "rejects shortening a booking after a concurrent calendar insert: %s", async (isolationLevel) => {
@@ -87,16 +129,25 @@ describe("CalendarDay booking relationship", () => {
         await inserted;
         return tx.booking.update({ where: { id: booking.id }, data: { endDate: startDate } });
       }, { isolationLevel, timeout: 10_000 });
-      const rejected = expect(update).rejects.toThrow();
+      const outcome = update.then(
+        () => ({ status: "fulfilled" as const }),
+        (reason: unknown) => ({ status: "rejected" as const, reason }),
+      );
       try {
-        await ready;
-        await db.calendarDay.create({ data: { itemId, date: endDate, kind: "BOOKED", bookingId: booking.id } });
-      } finally { continueUpdate(); }
-      await rejected;
-      expect((await db.booking.findUniqueOrThrow({ where: { id: booking.id } })).endDate).toEqual(endDate);
-      // Keep the shared item/date available for the next isolation case.
-      await db.calendarDay.updateMany({ where: { bookingId: booking.id }, data: { kind: "FREE", bookingId: null } });
-      await db.calendarDay.deleteMany({ where: { itemId, date: endDate } });
+        try {
+          await Promise.race([ready, outcome.then(() => { throw new Error("Updater ended before snapshot barrier"); })]);
+          await db.calendarDay.create({ data: { itemId, date: endDate, kind: "BOOKED", bookingId: booking.id } });
+        } finally { continueUpdate(); }
+        const reason = isolationLevel === Prisma.TransactionIsolationLevel.RepeatableRead
+          ? { code: "P2034" } : { message: expect.stringMatching(/PostgresError \{ code: "23514"/) };
+        await expect(outcome).resolves.toMatchObject({ status: "rejected", reason });
+        expect((await db.booking.findUniqueOrThrow({ where: { id: booking.id } })).endDate).toEqual(endDate);
+      } finally {
+        continueUpdate();
+        await outcome;
+        // A failed assertion must not leave dates behind and break later cases.
+        await db.calendarDay.deleteMany({ where: { bookingId: booking.id } });
+      }
     },
   );
 
@@ -125,7 +176,7 @@ describe("CalendarDay booking relationship", () => {
         itemId: other ? otherItemId : itemId, kind,
         date: outside ? new Date("2030-01-04") : startDate,
         bookingId: linked ? booking.id : null,
-      } })).rejects.toThrow();
+      } })).rejects.toThrow(/PostgresError \{ code: "23514"/);
     });
   });
 
@@ -135,7 +186,7 @@ describe("CalendarDay booking relationship", () => {
       await tx.calendarDay.create({ data: { itemId, date: endDate, kind: "BOOKED", bookingId: booking.id } });
       const data = field === "item" ? { itemId: otherItemId }
         : field === "start" ? { startDate: new Date("2030-01-04") } : { endDate: startDate };
-      await expect(tx.booking.update({ where: { id: booking.id }, data })).rejects.toThrow();
+      await expect(tx.booking.update({ where: { id: booking.id }, data })).rejects.toThrow(/PostgresError \{ code: "23514"/);
     });
   });
 
@@ -144,7 +195,7 @@ describe("CalendarDay booking relationship", () => {
       const booking = await createBooking(tx);
       const day = await tx.calendarDay.create({ data: { itemId, date: startDate, kind: "FREE" } });
       await tx.calendarDay.update({ where: { id: day.id }, data: { kind: "BOOKED", bookingId: booking.id } });
-      await expect(tx.calendarDay.update({ where: { id: day.id }, data: { kind: "FREE" } })).rejects.toThrow();
+      await expect(tx.calendarDay.update({ where: { id: day.id }, data: { kind: "FREE" } })).rejects.toThrow(/PostgresError \{ code: "23514"/);
     });
   });
 });
@@ -169,14 +220,14 @@ describe("DepositLedger invariants", () => {
   it.each([0, -1, 999])("rejects invalid initial deposit %i", async (amount) => {
     await rollbackTest(async (tx) => {
       const booking = await createBooking(tx);
-      await expect(tx.depositLedger.create({ data: entry(booking.id, "DEPOSIT_HELD", amount) })).rejects.toThrow();
+      await expect(tx.depositLedger.create({ data: entry(booking.id, "DEPOSIT_HELD", amount) })).rejects.toThrow(/PostgresError \{ code: "23514"/);
     });
   });
 
   it.each(["RELEASE", "DEDUCT", "VOID"] as const)("rejects %s without a held deposit", async (type) => {
     await rollbackTest(async (tx) => {
       const booking = await createBooking(tx);
-      await expect(tx.depositLedger.create({ data: entry(booking.id, type, 1) })).rejects.toThrow();
+      await expect(tx.depositLedger.create({ data: entry(booking.id, type, 1) })).rejects.toThrow(/PostgresError \{ code: "23514"/);
     });
   });
 
@@ -184,7 +235,7 @@ describe("DepositLedger invariants", () => {
     await rollbackTest(async (tx) => {
       const booking = await createBooking(tx);
       await tx.depositLedger.create({ data: entry(booking.id, "DEPOSIT_HELD", 1_000) });
-      await expect(tx.depositLedger.create({ data: entry(booking.id, "DEPOSIT_HELD", 1_000) })).rejects.toThrow();
+      await expect(tx.depositLedger.create({ data: entry(booking.id, "DEPOSIT_HELD", 1_000) })).rejects.toThrow(/PostgresError \{ code: "23514"/);
     });
   });
 
@@ -211,7 +262,11 @@ describe("DepositLedger invariants", () => {
           case "delete": write = tx.depositLedger.delete({ where: { id: held.id } }); break;
           default: write = tx.booking.update({ where: { id: booking.id }, data: { depositVnd: 2_000 } });
         }
-        await expect(write).rejects.toThrow();
+        if (operation === "duplicate") {
+          await expect(write).rejects.toMatchObject({ code: "P2002" });
+        } else {
+          await expect(write).rejects.toThrow(/PostgresError \{ code: "23514"/);
+        }
       });
     },
   );
@@ -221,7 +276,7 @@ describe("DepositLedger invariants", () => {
       const booking = await createBooking(tx);
       await tx.depositLedger.create({ data: entry(booking.id, "DEPOSIT_HELD", 1_000) });
       await tx.depositLedger.create({ data: entry(booking.id, "VOID", 1_000) });
-      await expect(tx.depositLedger.create({ data: entry(booking.id, "RELEASE", 1) })).rejects.toThrow();
+      await expect(tx.depositLedger.create({ data: entry(booking.id, "RELEASE", 1) })).rejects.toThrow(/PostgresError \{ code: "23514"/);
     });
   });
 
@@ -235,12 +290,13 @@ describe("DepositLedger invariants", () => {
     await db.depositLedger.create({ data: entry(booking.id, "DEPOSIT_HELD", 1_000) });
     const first = entry(booking.id, "RELEASE", mode === "same-event" ? 300 : 700);
     const second = { ...first, eventKey: mode === "same-event" ? first.eventKey : randomUUID() };
-    const outcomes = await Promise.allSettled([
-      db.$transaction((tx) => tx.depositLedger.create({ data: first }), { isolationLevel }),
-      db.$transaction((tx) => tx.depositLedger.create({ data: second }), { isolationLevel }),
-    ]);
-    expect(outcomes.filter((result) => result.status === "fulfilled")).toHaveLength(1);
-    expect(outcomes.filter((result) => result.status === "rejected")).toHaveLength(1);
+    const insert = (tx: Prisma.TransactionClient, data: typeof first) => tx.$executeRaw`
+      INSERT INTO "DepositLedger" ("bookingId", type, "amountVnd", "eventKey", reason)
+      VALUES (${data.bookingId}, 'RELEASE', ${data.amountVnd}, ${data.eventKey}, ${data.reason})`;
+    const result = await contendWithLock((tx) => insert(tx, first), (tx) => insert(tx, second), isolationLevel);
+    const sqlState = isolationLevel === Prisma.TransactionIsolationLevel.RepeatableRead
+      ? "40001" : mode === "same-event" ? "23505" : "23514";
+    expect(result).toMatchObject({ status: "rejected", reason: { code: "P2010", meta: { code: sqlState } } });
     expect(await db.depositLedger.count({ where: { bookingId: booking.id, type: "RELEASE" } })).toBe(1);
   });
 });
@@ -251,7 +307,7 @@ describe("Booking values and history", () => {
     { startDate: endDate, endDate: startDate },
   ])("rejects invalid booking data: %j", async (changes) => {
     await rollbackTest(async (tx) => {
-      await expect(createBooking(tx, changes)).rejects.toThrow();
+      await expect(createBooking(tx, changes)).rejects.toThrow(/PostgresError \{ code: "23514"/);
     });
   });
 
@@ -265,7 +321,7 @@ describe("Booking values and history", () => {
   it.each([{ totalVnd: 4_000 }, { depositVnd: 2_000 }])("protects money snapshots before ledger writes: %j", async (data) => {
     await rollbackTest(async (tx) => {
       const booking = await createBooking(tx);
-      await expect(tx.booking.update({ where: { id: booking.id }, data })).rejects.toThrow();
+      await expect(tx.booking.update({ where: { id: booking.id }, data })).rejects.toThrow(/PostgresError \{ code: "23514"/);
     });
   });
 
@@ -284,13 +340,13 @@ describe("Booking values and history", () => {
   it.each([null, new Date("2000-01-01")])("rejects changing recorded return time to %s", async (returnedAt) => {
     await rollbackTest(async (tx) => {
       const booking = await createBooking(tx, { status: "RETURNED" });
-      await expect(tx.booking.update({ where: { id: booking.id }, data: { returnedAt } })).rejects.toThrow();
+      await expect(tx.booking.update({ where: { id: booking.id }, data: { returnedAt } })).rejects.toThrow(/PostgresError \{ code: "23514"/);
     });
   });
 
   it("rejects a manually supplied return time before return", async () => {
     await rollbackTest(async (tx) => {
-      await expect(createBooking(tx, { returnedAt: new Date("2000-01-01") })).rejects.toThrow();
+      await expect(createBooking(tx, { returnedAt: new Date("2000-01-01") })).rejects.toThrow(/PostgresError \{ code: "23514"/);
     });
   });
 });
@@ -302,7 +358,35 @@ describe("AuditLog append-only", () => {
       const write = operation === "update"
         ? tx.auditLog.update({ where: { id: audit.id }, data: { action: "rewritten" } })
         : tx.auditLog.delete({ where: { id: audit.id } });
-      await expect(write).rejects.toThrow();
+      await expect(write).rejects.toThrow(/PostgresError \{ code: "23514"/);
+    });
+  });
+});
+
+describe("Historical user references", () => {
+  it.each(["audit", "ledger", "claim"])("rejects deleting a user referenced only by %s", async (reference) => {
+    await rollbackTest(async (tx) => {
+      const user = await tx.user.create({ data: {
+        email: `${randomUUID()}@history.test`, fullName: "Historical actor",
+        passwordHash: "unused-test-hash", role: "ADMIN",
+      } });
+      if (reference === "audit") {
+        await tx.auditLog.create({ data: { actorId: user.id, action: "test", entity: "Booking" } });
+      } else {
+        const booking = await createBooking(tx);
+        if (reference === "ledger") {
+          await tx.depositLedger.create({ data: { ...entry(booking.id, "DEPOSIT_HELD", 1_000), createdById: user.id } });
+        } else {
+          await tx.damageClaim.create({ data: { bookingId: booking.id, openedById: buyerId,
+            resolvedById: user.id, status: "RESOLVED", reason: "Test", amountRequestedVnd: 1,
+            amountAwardedVnd: 1, resolvedAt: new Date() } });
+        }
+      }
+      // Deactivation does not mutate history; hard deletion fails at the FK,
+      // not through an implicit UPDATE blocked by an append-only trigger.
+      expect((await tx.user.update({ where: { id: user.id }, data: { isActive: false } })).isActive).toBe(false);
+      await expect(tx.$executeRaw`DELETE FROM "User" WHERE id = ${user.id}`)
+        .rejects.toMatchObject({ code: "P2010", meta: { code: "23503" } });
     });
   });
 });
@@ -314,7 +398,7 @@ describe("RateTier ranges", () => {
     { minDays: 1, maxDays: 2, pricePerDayVnd: -1 },
   ])("rejects invalid tier values: %j", async (data) => {
     await rollbackTest(async (tx) => {
-      await expect(tx.rateTier.create({ data: { itemId, ...data } })).rejects.toThrow();
+      await expect(tx.rateTier.create({ data: { itemId, ...data } })).rejects.toThrow(/PostgresError \{ code: "23514"/);
     });
   });
 
@@ -332,7 +416,7 @@ describe("RateTier ranges", () => {
   it.each([3, null])("rejects overlapping ranges with maxDays %s", async (maxDays) => {
     await rollbackTest(async (tx) => {
       await tx.rateTier.create({ data: { itemId, minDays: 1, maxDays, pricePerDayVnd: 100 } });
-      await expect(tx.rateTier.create({ data: { itemId, minDays: 2, maxDays: 4, pricePerDayVnd: 90 } })).rejects.toThrow();
+      await expect(tx.rateTier.create({ data: { itemId, minDays: 2, maxDays: 4, pricePerDayVnd: 90 } })).rejects.toThrow(/PostgresError \{ code: "23514"/);
     });
   });
 
@@ -340,7 +424,7 @@ describe("RateTier ranges", () => {
     await rollbackTest(async (tx) => {
       await tx.rateTier.create({ data: { itemId, minDays: 1, maxDays: 2, pricePerDayVnd: 100 } });
       const tier = await tx.rateTier.create({ data: { itemId, minDays: 3, maxDays: null, pricePerDayVnd: 90 } });
-      await expect(tx.rateTier.update({ where: { id: tier.id }, data: { minDays: 2 } })).rejects.toThrow();
+      await expect(tx.rateTier.update({ where: { id: tier.id }, data: { minDays: 2 } })).rejects.toThrow(/PostgresError \{ code: "23514"/);
     });
   });
 
@@ -349,12 +433,12 @@ describe("RateTier ranges", () => {
       const original = await db.item.findUniqueOrThrow({ where: { id: itemId } });
       const item = await db.item.create({ data: { ownerId: original.ownerId,
         categoryId: original.categoryId, replacementValueVnd: 1_000, title: "Tier race" } });
-      const outcomes = await Promise.allSettled([
-        db.$transaction((tx) => tx.rateTier.create({ data: { itemId: item.id, minDays: 1, maxDays: 3, pricePerDayVnd: 100 } }), { isolationLevel }),
-        db.$transaction((tx) => tx.rateTier.create({ data: { itemId: item.id, minDays: 2, maxDays: 4, pricePerDayVnd: 90 } }), { isolationLevel }),
-      ]);
-      expect(outcomes.filter((outcome) => outcome.status === "fulfilled")).toHaveLength(1);
-      expect(outcomes.filter((outcome) => outcome.status === "rejected")).toHaveLength(1);
+      const insert = (tx: Prisma.TransactionClient, min: number, max: number) => tx.$executeRaw`
+        INSERT INTO "RateTier" ("itemId", "minDays", "maxDays", "pricePerDayVnd")
+        VALUES (${item.id}, ${min}, ${max}, 100)`;
+      const result = await contendWithLock((tx) => insert(tx, 1, 3), (tx) => insert(tx, 2, 4), isolationLevel);
+      const sqlState = isolationLevel === Prisma.TransactionIsolationLevel.RepeatableRead ? "40001" : "23514";
+      expect(result).toMatchObject({ status: "rejected", reason: { code: "P2010", meta: { code: sqlState } } });
     },
   );
 });
@@ -389,7 +473,7 @@ describe("Checklist history snapshots", () => {
     await rollbackTest(async (tx) => {
       const { entryData } = await checklistFixture(tx);
       const entry = await tx.conditionReportEntry.create({ data: entryData });
-      await expect(tx.conditionReportEntry.update({ where: { id: entry.id }, data })).rejects.toThrow();
+      await expect(tx.conditionReportEntry.update({ where: { id: entry.id }, data })).rejects.toThrow(/PostgresError \{ code: "23514"/);
     });
   });
 
@@ -398,7 +482,7 @@ describe("Checklist history snapshots", () => {
       const { entryData } = await checklistFixture(tx);
       const category = await tx.category.create({ data: { name: "Other checklist category" } });
       const template = await tx.checklistTemplateItem.create({ data: { categoryId: category.id, label: "Other" } });
-      await expect(tx.conditionReportEntry.create({ data: { ...entryData, checklistItemId: template.id } })).rejects.toThrow();
+      await expect(tx.conditionReportEntry.create({ data: { ...entryData, checklistItemId: template.id } })).rejects.toThrow(/PostgresError \{ code: "23514"/);
     });
   });
 });

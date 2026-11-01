@@ -210,8 +210,10 @@ npm run dev                   # http://localhost:3000
 
 DB đã có schema/dữ liệu từ `db push` cần DB OWNER chuẩn bị baseline/upgrade;
 không reset hoặc chạy migration đầu tiên trực tiếp. Xem `doc/cicd.md` mục 2.1.
-Seed dùng DELETE và sẽ bị chặn nếu đã có ledger/audit append-only; wipe không
-transaction nên có thể xóa một phần dữ liệu trước lỗi. Không seed DB cần giữ dữ liệu.
+Seed kiểm tra booking/ledger/audit trước khi wipe: nếu có dữ liệu thì bỏ qua,
+exit 0 để Docker tiếp tục chạy app. Nếu cả ba bảng trống, dữ liệu mẫu được tạo
+lại trong một transaction; lỗi giữa chừng rollback toàn bộ. Không dùng seed để
+reset dữ liệu nghiệp vụ; reset DB local cần thao tác riêng có chủ đích.
 
 Biến môi trường (xem `.env.example`):
 

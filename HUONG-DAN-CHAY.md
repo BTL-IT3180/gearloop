@@ -81,9 +81,9 @@ npm test
 Chi tiết: [`doc/regression-testing.md`](./doc/regression-testing.md).
 
 DB đã tạo bằng `db push` cần DB OWNER chuẩn bị baseline/upgrade trước; không
-reset DB dùng chung. Seed dùng DELETE nên sẽ bị chặn nếu DB đã có ledger/audit.
-Wipe không transaction, có thể xóa một phần dữ liệu trước lỗi; không seed DB cần giữ dữ liệu.
-Không vô hiệu trigger append-only để chạy lại seed.
+reset DB dùng chung. Seed bỏ qua với exit 0 nếu đã có booking/ledger/audit,
+giữ dữ liệu và để Docker chạy app. Khi ba bảng trống, seed tái tạo dữ liệu mẫu
+trong transaction; nếu lỗi thì rollback. Không vô hiệu trigger append-only để seed.
 
 > Lưu ý: nếu source đặt trong thư mục đồng bộ cloud (OneDrive/iCloud/Dropbox),
 > filesystem chậm có thể làm `next dev` khởi động lâu — nên đặt project ở ổ thường.

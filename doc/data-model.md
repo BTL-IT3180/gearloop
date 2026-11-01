@@ -306,9 +306,13 @@ stateDiagram-v2
 - ConditionReportEntry lưu labelSnapshot và requiredSnapshot, được trigger lấy
   từ template đúng category khi INSERT; caller không thể giả snapshot. Sửa mẫu
   sau đó không đổi nội dung lịch sử. Identity/snapshot của entry không được sửa.
-- AuditLog có trigger chặn UPDATE/DELETE. Seed/Docker giữ nguyên nên seed sẽ
-  thất bại nếu đã có audit hoặc ledger; không seed DB cần giữ dữ liệu. Vì wipe
-  hiện không nằm trong transaction, seed có thể xóa một phần dữ liệu trước lỗi.
+- AuditLog có trigger chặn UPDATE/DELETE. Seed phát hiện booking/ledger/audit
+  thì bỏ qua và exit 0. Khi chưa có nghiệp vụ, wipe + seed là một transaction
+  SERIALIZABLE; lỗi rollback toàn bộ, CalendarDay xóa trước Booking.
+- AuditLog.actorId, DepositLedger.createdById và DamageClaim.resolvedById dùng
+  ON DELETE RESTRICT. Xóa user có lịch sử bị FK từ chối trực tiếp (23503), không
+  SET NULL gây UPDATE ngầm vào bảng append-only. isActive dùng khóa tài khoản;
+  các FK nullable vẫn cho phép NULL cho tác vụ hệ thống như trước.
 - Migration bổ sung snapshot cho bản ghi cũ từ mẫu hiện có, không phục hồi được
   nhãn trước các lần sửa mẫu trong quá khứ. returnedAt cũ chỉ lấy từ biên bản
   RETURN; booking RETURNED thiếu biên bản khiến migration bị chặn để DB OWNER

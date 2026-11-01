@@ -259,7 +259,7 @@ model DamageClaim {
 
   booking  Booking @relation(fields: [bookingId], references: [id])
   openedBy User    @relation("ClaimOpener", fields: [openedById], references: [id])
-  resolvedBy User?  @relation("ClaimResolver", fields: [resolvedById], references: [id])
+  resolvedBy User?  @relation("ClaimResolver", fields: [resolvedById], references: [id], onDelete: Restrict)
 
   @@index([bookingId])
   @@index([status])
@@ -278,7 +278,7 @@ model DepositLedger {
   createdAt   DateTime        @default(now())
 
   booking  Booking @relation(fields: [bookingId], references: [id])
-  createdBy User?  @relation(fields: [createdById], references: [id])
+  createdBy User?  @relation(fields: [createdById], references: [id], onDelete: Restrict)
 
   @@unique([bookingId, eventKey, type]) // Một sự kiện có thể ghi cả DEDUCT và RELEASE.
   @@index([bookingId])
@@ -314,7 +314,7 @@ model AuditLog {
   detail    Json?
   createdAt DateTime @default(now())
 
-  actor User? @relation(fields: [actorId], references: [id])
+  actor User? @relation(fields: [actorId], references: [id], onDelete: Restrict)
 
   @@index([entity, entityId])
 }
