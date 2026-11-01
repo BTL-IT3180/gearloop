@@ -27,6 +27,9 @@ data-model.md mục 4).
 
 ## Hệ quả
 
-- Đặt booking = transaction (booking + flip lịch + ledger HOLD); race bị unique chặn.
+- Đặt booking = transaction (booking + chiếm đủ lịch FREE + ledger DEPOSIT_HELD).
+  Unique chỉ chặn INSERT trùng; UPDATE phải có điều kiện FREE và kiểm tra số dòng.
+- Khóa ngoại ghép buộc lịch/booking cùng item. CHECK bảo vệ kind/bookingId;
+  trigger kiểm tra khoảng ngày và bảo vệ khi sửa ngược từ booking.
 - Seller "chặn ngày bảo trì" = CRUD `kind = BLOCKED` — không logic đặc biệt.
 - Giới hạn 60 ngày nhìn thấy trước — mở rộng là một job chạy hằng ngày (không blocking).

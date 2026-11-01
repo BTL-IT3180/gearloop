@@ -121,8 +121,9 @@ erDiagram
     DEPOSIT_LEDGERS {
         serial id PK
         int    booking_id FK
-        varchar type "HOLD | RELEASE | DEDUCT | VOID"
+        varchar type "DEPOSIT_HELD | RELEASE | DEDUCT | VOID"
         int    amount_vnd
+        varchar event_key "unique cùng booking_id và type"
     }
 ```
 
@@ -132,6 +133,12 @@ erDiagram
 được set khi `kind = BOOKED`; ngày `BLOCKED` (bảo trì) và `FREE` để NULL.
 Cột này phục vụ truy ngược "ngày này thuộc booking nào" mà không cần khoảng
 ngày logic nào khác.
+
+DB có CHECK `BOOKED <=> bookingId IS NOT NULL`. Khóa ngoại ghép
+`CalendarDay(bookingId, itemId) → Booking(id, itemId)` bảo đảm cùng thiết bị.
+Trigger kiểm tra ngày trong `[startDate, endDate]`, đồng thời ngăn sửa booking
+làm các ngày đã liên kết rơi ra ngoài khoảng thuê. Các CHECK/trigger nằm trong
+migration SQL; `db push` không cài đặt chúng.
 
 **b) `bookings` lưu snapshot tiền (`total_vnd`, `deposit_vnd`)** thay vì tính
 lại từ `rate_tiers`/`deposit_policies` lúc đọc. Chủ thiết bị có quyền sửa
@@ -208,17 +215,19 @@ tới), đặt/hủy chỉ **đổi `kind`**:
 | Kịch bản | Với `UNIQUE(item_id, date)` |
 | --- | --- |
 | An đặt ngày 14/11 → hủy | Dòng 14/11 đổi `BOOKED → FREE`. Linh đặt lại bình thường |
-| Hai buyer đặt cùng ngày | Cả hai UPDATE/INSERT cùng dòng → dòng thứ hai bị **DB từ chối** |
-| Script chèn thẳng vào DB quên check | Vẫn bị chặn — unique không có đường vòng |
+| Hai buyer đặt cùng ngày | UPDATE có điều kiện FREE trong transaction; kiểm tra đủ số dòng, bên thua rollback |
+| Script chèn thẳng dòng lịch trùng | Unique từ chối INSERT trùng; UPDATE cùng dòng cần điều kiện riêng |
 
 Nguyên tắc mirror từ [ADR-004 của template](https://github.com/NgDucLoc/MedBook-Case-Study-Base/blob/main/doc/adr/004-transaction-lock-booking.md):
 *quy tắc nghiệp vụ sống còn thì đặt ở cả code lẫn database.* Trong
-`bookingService.createBooking()` có check availability để trả lỗi 409 thân
-thiện; `UNIQUE(item_id, date)` là lớp bảo vệ cuối mà không đường code nào vượt qua.
+luồng booking cần kiểm tra số ngày chiếm được để trả lỗi 409 thân thiện.
+`UNIQUE(item_id, date)` chỉ bảo vệ tính duy nhất của dòng lịch, không tự khóa
+truy vấn đọc hay ngăn ghi đè bookingId. Booking service hiện chưa được triển khai.
 
-Đặt booking là **một transaction** gồm 3 ghi: tạo `Booking(REQUESTED)` → đổi
-các dòng `CalendarDay` sang `BOOKED` (+ `booking_id`) → ghi
-`DepositLedger(HOLD)`. Có điều kiện nào thất bại → rollback toàn bộ.
+Đặt booking là **một transaction**: tạo `Booking(REQUESTED)` → chiếm đủ ngày
+FREE → ghi `DepositLedger(DEPOSIT_HELD)` bằng snapshot cọc (bỏ qua nếu cọc 0)
+→ chuyển booking sang `DEPOSIT_HELD`. Có điều kiện nào thất bại → rollback
+toàn bộ. Seller duyệt sau đó: `DEPOSIT_HELD → APPROVED`, không giữ cọc lần hai.
 
 ---
 
@@ -229,10 +238,10 @@ các dòng `CalendarDay` sang `BOOKED` (+ `booking_id`) → ghi
 ```mermaid
 stateDiagram-v2
     [*] --> REQUESTED : Buyer đặt lịch<br/>POST /api/bookings
-    REQUESTED --> APPROVED : Seller duyệt
-    REQUESTED --> CLOSED : Seller từ chối<br/>(ledger VOID, lịch trả FREE)
-    APPROVED --> DEPOSIT_HELD : cọc ghi HOLD
-    DEPOSIT_HELD --> PICKED_UP : giao máy<br/>+ biên bản PICKUP
+    REQUESTED --> DEPOSIT_HELD : hoàn tất giữ cọc trong transaction tạo booking
+    DEPOSIT_HELD --> APPROVED : Seller duyệt
+    DEPOSIT_HELD --> CLOSED : Seller từ chối<br/>(ledger VOID, lịch trả FREE)
+    APPROVED --> PICKED_UP : giao máy<br/>+ biên bản PICKUP
     PICKED_UP --> RETURN_PENDING : buyer trả
     RETURN_PENDING --> RETURNED : Seller ghi biên bản RETURN
     RETURNED --> CLOSED : hết 48h không claim<br/>→ ledger RELEASE tự động
@@ -246,8 +255,9 @@ stateDiagram-v2
 | Từ | Sang | Ai được làm | Điều kiện / Vi phạm |
 | --- | --- | --- | --- |
 | (mới) | `REQUESTED` | Buyer | Ngày không FREE → `409` |
-| `REQUESTED` | `APPROVED` | Seller (chủ item) | Buyer tự duyệt → `403` |
-| `REQUESTED` | `CLOSED` | Seller | Lịch trả `FREE`, ledger `VOID` |
+| `REQUESTED` | `DEPOSIT_HELD` | Hệ thống, trong transaction tạo booking | Đã chiếm đủ lịch và ghi cọc; cọc 0 không ghi ledger |
+| `DEPOSIT_HELD` | `APPROVED` | Seller (chủ item) | Buyer tự duyệt → `403`; không ghi cọc lần hai |
+| `DEPOSIT_HELD` | `CLOSED` | Seller | Lịch trả `FREE`, ledger `VOID` bằng số dư còn giữ |
 | `APPROVED` | `PICKED_UP` | Seller | Phải có biên bản `PICKUP` đầy đủ mục required |
 | `RETURNED` | `CLOSED` | **Hệ thống** (timer) | Không claim trong `claim_window_hours` → `RELEASE` |
 | `RETURNED` | `DISPUTED` | Seller hoặc Buyer | Claim mới chỉ khi biên bản RETURN có `NOT_OK` |
@@ -258,7 +268,7 @@ Ba điều cần nhớ:
 
 1. `CLOSED` là **trạng thái chết** — thuê lại phải tạo booking mới.
 2. Chuyển trạng thái là **UPDATE có điều kiện**:
-   `UPDATE bookings SET status='APPROVED' WHERE id=$1 AND status='REQUESTED' RETURNING id`
+   `UPDATE "Booking" SET status='APPROVED' WHERE id=$1 AND status='DEPOSIT_HELD' RETURNING id`
    — không trả dòng nào nghĩa là state sai → ném `409`. Không có khe hở thời gian.
 3. Timer nhả cọc và auto-suspension là **so sánh timestamp thuần** — không ML (giới hạn môn học).
 
@@ -274,6 +284,13 @@ stateDiagram-v2
 ---
 
 ## 6. Hạn chế đã biết
+
+- Ledger: `amountVnd > 0`, `eventKey` không rỗng, unique theo
+  `(bookingId, eventKey, type)`; chỉ một DEPOSIT_HELD mỗi booking.
+  Số dư = DEPOSIT_HELD − RELEASE − DEDUCT − VOID. Trigger serialize ghi cọc,
+  chặn chi vượt số dư, sửa/xóa bút toán và sửa snapshot cọc đã ghi. Xem ADR-004.
+- Enum bút toán `HOLD` trong kế hoạch Excel được thống nhất thành `DEPOSIT_HELD`;
+  trạng thái Booking cùng tên thể hiện bước giữ cọc đã hoàn tất.
 
 - `item_photos.url` là URL ngoài — **không có xác minh ảnh tự động** (cấm AI/CV);
   độ tin cậy dựa vào slot ảnh bắt buộc theo checklist + Admin xét khiếu nại.

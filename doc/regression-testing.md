@@ -10,14 +10,23 @@ PostgreSQL thật — **không mock** (mock chỉ che giấu lỗi tích hợp).
 
 - Seed tạo đúng số lượng users/categories/items + bcrypt hash (không plaintext).
 - Mỗi item có đủ tier, cọc, ảnh gốc, 60 ngày lịch.
-- **Ràng buộc sống còn**: `@@unique([itemId, date])` chặn đặt chồng ở tầng DB.
+- `@@unique([itemId, date])` chặn INSERT dòng lịch trùng, chưa chứng minh chống
+  hai booking UPDATE cùng dòng lịch.
 - Phạm vi đối chứng: cùng ngày khác item vẫn hợp lệ (ràng buộc đúng phạm vi).
+
+`tests/schema-integrity.test.ts` tạo schema riêng với tên ngẫu nhiên trong
+`gearloop_test` local, chạy `migrate deploy`, tự tạo fixture, sau cùng xóa đúng
+schema đó. Không đọc/sửa fixture seed của smoke test và không reset DB dùng chung.
+User DB test cần quyền tạo/xóa schema. Bộ test kiểm tra lịch đúng item/khoảng ngày,
+kind/bookingId, tiền dương, eventKey, cọc duy nhất, VOID, append-only, snapshot
+và hai lần RELEASE đồng thời (cùng khóa hoặc khác khóa). Đây là test DB,
+không phải kiểm thử API hay state machine service chưa triển khai.
 
 ## 2. Kế hoạch mở rộng theo sprint
 
 | Sprint | Thêm test |
 | --- | --- |
-| S2 | Luồng booking: tạo → lịch flip BOOKED → ledger HOLD; hủy → VOID; chồng ngày → 409 |
+| S2 | Luồng booking: tạo → lịch flip BOOKED → ledger DEPOSIT_HELD; hủy → VOID; chồng ngày → 409 |
 | S3 | Claim: chỉ mở khi NOT_OK; award > deposit → 400; resolve → ledger DEDUCT |
 | S4 | Regression pool: mọi bug beta P0/P1 được kèm 1 test tái hiện |
 | S5 | Test case trắng/đen hộp cho môn học (white-box: createBooking, resolveClaim) |
@@ -34,6 +43,7 @@ PostgreSQL thật — **không mock** (mock chỉ che giấu lỗi tích hợp).
 
 ```bash
 docker compose up -d db
-DATABASE_URL="postgres://gearloop:gearloop@localhost:55432/gearloop" npm test
+DATABASE_URL="postgres://gearloop:gearloop@localhost:55432/gearloop_test" npm test
 ```
-(CI tự làm các bước này với `gearloop_test`.)
+(DB test phải được migrate và seed trước; có thể dùng `make test` theo Makefile.
+CI tự migrate và seed DB trống. Không dùng `db push`: nó bỏ qua CHECK/trigger.)

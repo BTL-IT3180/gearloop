@@ -161,9 +161,10 @@ Lý do từng lựa chọn nằm trong [doc/adr/](./doc/adr/).
 `damage_claims`, `deposit_ledgers`, `reviews`, `policy_settings`,
 `audit_logs`.
 
-Quy tắc nghiệp vụ then chốt — **một (thiết bị, ngày) chỉ có đúng một dòng
-CalendarDay, không thể đặt chồng** — được bảo vệ bằng `UNIQUE(itemId, date)`
-ở tầng database: bất kỳ đường code nào quên kiểm tra cũng không vượt qua được.
+Một (thiết bị, ngày) có đúng một dòng CalendarDay nhờ `UNIQUE(itemId, date)`.
+Chống đặt chồng còn cần UPDATE có điều kiện FREE, kiểm tra đủ số ngày và rollback
+trong transaction; unique không ngăn ghi đè cùng dòng. Migration bổ sung các
+ràng buộc lịch/booking và sổ cọc ở DB.
 Chi tiết: [doc/data-model.md](./doc/data-model.md).
 
 ---
@@ -202,10 +203,14 @@ curl http://localhost:4300/api/health
 ```bash
 npm install
 cp .env.example .env          # sửa DATABASE_URL nếu cần
-npx prisma db push            # đồng bộ schema
+npm run db:deploy             # DB mới/trống: cài schema và các CHECK/trigger
 npm run db:seed               # nạp dữ liệu mẫu
 npm run dev                   # http://localhost:3000
 ```
+
+DB đã có schema/dữ liệu từ `db push` cần DB OWNER chuẩn bị baseline/upgrade;
+không reset hoặc chạy migration đầu tiên trực tiếp. Xem `doc/cicd.md` mục 2.1.
+Seed dùng DELETE và sẽ bị chặn nếu đã có ledger append-only.
 
 Biến môi trường (xem `.env.example`):
 

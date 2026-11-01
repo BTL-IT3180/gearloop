@@ -47,14 +47,20 @@ POST /api/bookings { itemId, startDate, endDate }
   2. Tính totalVnd từ rate_tiers (khoảng ngày áp tier nào) — snapshot
   3. Tính depositVnd = replacement_value_vnd × percent / 100 (≤ deposit_cap_percent)
   4. prisma.$transaction:
-       a. SELECT các CalendarDay (itemId, from..to) FOR UPDATE ngầm qua unique
-          — nếu bất kỳ dòng nào ≠ FREE → AppError 409 "Khung ngày đã có người đặt"
-       b. UPDATE CalendarDay SET kind='BOOKED', bookingId=... WHERE id IN (...) AND kind='FREE'
-       c. INSERT Booking (REQUESTED, snapshot tiền)
-       d. INSERT DepositLedger (HOLD, depositVnd, "Giữ cọc lúc đặt")
-       e. INSERT AuditLog ("booking.create")
-  5. Bất kỳ bước nào ném lỗi → rollback toàn bộ (có check-then-act giữa a–b
-     được chặn bởi UNIQUE(item_id, date) — xem data-model.md mục 4)
+       a. INSERT Booking (REQUESTED, snapshot tiền)
+       b. UPDATE CalendarDay SET kind='BOOKED', bookingId=...
+          WHERE itemId=... AND date BETWEEN from AND to AND kind='FREE'
+          — số dòng cập nhật phải bằng đủ số ngày thuê; thiếu → AppError 409
+            "Khung ngày đã có người đặt", rollback cả booking và các ngày đã chiếm
+       c. Khóa ngoại ghép bảo đảm lịch và booking cùng item; CHECK/trigger
+          kiểm tra kind/bookingId và ngày lịch trong khoảng thuê
+       d. INSERT DepositLedger (DEPOSIT_HELD, depositVnd, "Giữ cọc lúc đặt")
+          — bỏ qua bút toán nếu depositVnd = 0
+       e. UPDATE Booking SET status='DEPOSIT_HELD' (đã hoàn tất bước giữ cọc)
+       f. INSERT AuditLog ("booking.create")
+  5. Bất kỳ bước nào ném lỗi → rollback toàn bộ. Unique chỉ chặn dòng lịch
+     trùng, không tự tạo SELECT FOR UPDATE và không chặn UPDATE ghi đè.
+  6. Seller duyệt: DEPOSIT_HELD → APPROVED; không ghi thêm DEPOSIT_HELD.
 ```
 
 ## 5. Nhả cọc tự động (S2)
@@ -76,6 +82,10 @@ POST /api/admin/claims/:id/resolve { amountAwardedVnd }
      + booking → RESOLVED
      + AuditLog với diff số tiền
 ```
+
+Ledger dùng số tiền dương và eventKey ổn định. Cùng sự kiện phân xử dùng chung
+eventKey cho DEDUCT và RELEASE; retry không sinh khóa mới. DB từ chối bút toán
+trùng, chi vượt số dư và UPDATE/DELETE ledger. Chi tiết: ADR-004.
 
 Số tiền quyết định **luôn** thuộc Admin — hệ thống chỉ gợi ý từ diff hai biên
 bản, không tự quyết (không AI, đúng giới hạn môn học).

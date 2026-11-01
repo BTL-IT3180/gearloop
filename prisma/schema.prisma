@@ -36,8 +36,8 @@ enum CalendarDayKind {
 // Máy trạng thái Booking — xem doc/data-model.md mục 5
 enum BookingStatus {
   REQUESTED
-  APPROVED
   DEPOSIT_HELD
+  APPROVED
   PICKED_UP
   RETURN_PENDING
   RETURNED
@@ -62,9 +62,9 @@ enum ClaimStatus {
   RESOLVED
 }
 
-// Sổ cọc chỉ ghi thêm: HOLD giữ cọc · RELEASE nhả · DEDUCT trừ bồi thường · VOID huỷ giao dịch
+// Tiền luôn dương: DEPOSIT_HELD tăng số dư; RELEASE/DEDUCT/VOID giảm số dư.
 enum LedgerEntryType {
-  HOLD
+  DEPOSIT_HELD
   RELEASE
   DEDUCT
   VOID
@@ -168,8 +168,8 @@ model DepositPolicy {
 }
 
 // ── Trái tim của app: lịch ngày dạng materialized ──
-// Mỗi (thiết bị, ngày) ĐÚNG MỘT dòng. Ràng buộc @@unique dưới đây là lớp
-// chống đặt chồng cứng ở tầng DB — không logic ứng dụng nào vượt qua được.
+// Unique bảo vệ một dòng/ngày; chiếm lịch cần UPDATE có điều kiện kind = FREE
+// và kiểm tra đủ số ngày trong cùng transaction với booking và cọc.
 // Xem ADR-003 và doc/data-model.md mục 4.
 model CalendarDay {
   id        Int             @id @default(autoincrement())
@@ -179,7 +179,8 @@ model CalendarDay {
   bookingId Int? // đặt khi kind = BOOKED; BLOCKED thì null
 
   item    Item     @relation(fields: [itemId], references: [id])
-  booking Booking? @relation(fields: [bookingId], references: [id])
+  // SQL migration kiểm tra BOOKED <=> bookingId != null và ngày trong khoảng thuê.
+  booking Booking? @relation(fields: [bookingId, itemId], references: [id, itemId], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([itemId, date])
   @@index([itemId, date])
@@ -191,7 +192,7 @@ model Booking {
   buyerId    Int
   startDate  DateTime      @db.Date
   endDate    DateTime      @db.Date // ngày trả, inclusively tính phí
-  status     BookingStatus @default(REQUESTED)
+  status     BookingStatus @default(REQUESTED) // REQUESTED -> DEPOSIT_HELD -> APPROVED
   totalVnd   Int // snapshot tổng tiền tính từ RateTier lúc đặt
   depositVnd Int // snapshot tiền cọc lúc đặt
   createdAt  DateTime      @default(now())
@@ -205,6 +206,7 @@ model Booking {
   calendarDays    CalendarDay[]
   review          Review?
 
+  @@unique([id, itemId]) // Đích khóa ngoại ghép của CalendarDay, không được trỏ khác thiết bị.
   @@index([buyerId])
   @@index([itemId, status])
 }
@@ -266,7 +268,8 @@ model DepositLedger {
   id          Int             @id @default(autoincrement())
   bookingId   Int
   type        LedgerEntryType
-  amountVnd   Int
+  amountVnd   Int // > 0; số dư = DEPOSIT_HELD - RELEASE - DEDUCT - VOID
+  eventKey    String // Khóa sự kiện ổn định do server tạo; retry phải dùng lại cùng khóa.
   reason      String
   createdById Int? // null = hệ thống tự chạy (timer nhả cọc)
   createdAt   DateTime        @default(now())
@@ -274,6 +277,7 @@ model DepositLedger {
   booking  Booking @relation(fields: [bookingId], references: [id])
   createdBy User?  @relation(fields: [createdById], references: [id])
 
+  @@unique([bookingId, eventKey, type]) // Một sự kiện có thể ghi cả DEDUCT và RELEASE.
   @@index([bookingId])
 }
 

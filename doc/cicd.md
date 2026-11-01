@@ -57,7 +57,7 @@ Các bước dự kiến trong pipeline:
 | Cài dependency | `npm ci` | Có |
 | Sinh Prisma Client | `npx prisma generate` | Có |
 | Lint | `npm run lint` | Có |
-| Đồng bộ schema và seed | `prisma db push` và `npm run db:seed` trên PostgreSQL service trong giai đoạn chưa chuyển sang migrations | Có |
+| Đồng bộ schema và seed | `prisma migrate deploy` và `npm run db:seed` trên PostgreSQL service | Có |
 | Build | `npm run build` | Có |
 | Typecheck | `npm run typecheck` | Có |
 | Test | `npm test` bằng Vitest với database thật, không mock database | Có |
@@ -66,15 +66,24 @@ Các lệnh và điều kiện trên phải khớp với workflow thực tế. N
 
 ### 2.1. Quy tắc đồng bộ database
 
-- `prisma db push` được sử dụng trong giai đoạn chưa có migration đầu tiên theo quy trình hiện tại của nhóm.
-- Sau khi story GL-104 (DB owner) merge migration đầu tiên, chuyển bước đồng bộ schema sang:
+- E0-F1-T3 cung cấp migration đầu tiên cho DB mới/trống. CI dùng:
 
 ```bash
 npx prisma migrate deploy
 ```
 
 - Không bỏ bước đồng bộ database khỏi CI.
-- Chỉ chuyển đổi khi migration đầu tiên đã được merge và quy trình migration đã sẵn sàng.
+- Migration chứa CHECK, partial unique index và trigger mà `db push` không tạo.
+- Với DB đã tạo bằng `db push`, không chạy migration đầu tiên trực tiếp và không
+  reset DB dùng chung. DB OWNER cần kiểm kê dữ liệu, thiết kế baseline/upgrade
+  riêng: đổi enum HOLD thành DEPOSIT_HELD, backfill eventKey theo sự kiện thực tế,
+  rà soát lịch/cọc sai trước khi thêm ràng buộc. Không tự đánh dấu migration đã
+  áp dụng khi các CHECK/trigger chưa được cài.
+- Ledger được bảo vệ append-only ở DB: seed dùng DELETE sẽ bị chặn khi đã có
+  ledger. Chỉ seed DB local/test trống; không vô hiệu trigger trên DB dùng chung.
+- Theo quyết định trong lượt sửa E0-F1-T3, giữ nguyên seed/Docker. Docker luôn
+  chạy seed trước khi start nên **khởi động app sẽ thất bại nếu DB đã có ledger**.
+  Cần task riêng cho bootstrap không phá dữ liệu; không tự sửa trong phạm vi này.
 - Không tự ý sửa schema, tạo migration hoặc thay đổi quy trình database ngoài phạm vi issue được giao và quyền hạn được phân công.
 
 ## 3. Môi trường
