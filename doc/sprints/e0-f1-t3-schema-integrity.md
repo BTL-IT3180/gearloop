@@ -114,3 +114,32 @@ Giới hạn còn lại:
   khẳng định hoàn thành tính năng booking hay toàn bộ E0-F1-T3.
 - PR follow-up đề xuất: `fix(db): harden booking concurrency and historical data`.
   DB OWNER review migration, pod D review test/docs. Seed/Docker không thay đổi.
+
+## Xác minh PostgreSQL 16 và phạm vi schema — 01/11/2026
+
+- Người phụ trách xác nhận giữ nguyên **16 model** thay yêu cầu 8 model trong
+  bảng kế hoạch ban đầu. Không đổi tên hay gom model chỉ để khớp số lượng cũ.
+- Khuyến nghị giữ một file `prisma/schema.prisma` ở quy mô hiện tại: các quan hệ
+  dễ đối chiếu chung, schema vẫn gọn và DB OWNER quản lý thay đổi. Multi-file
+  chỉ đáng cân nhắc khi các pod thường xuyên xung đột khi sửa schema; việc tách
+  file không bổ sung ràng buộc DB hay làm migration an toàn hơn.
+- Môi trường kiểm thử: image `postgres:16-alpine`, server xác nhận qua SQL là
+  **PostgreSQL 16.15**, container riêng, cổng loopback ngẫu nhiên, dữ liệu tmpfs,
+  không gắn volume của dự án. Không migrate/seed DB local hiện có.
+- Hai migration áp dụng thành công từ DB trống; chạy lại migrate deploy không
+  còn migration chờ. Seed đạt 6 users, 3 categories, 4 items, 240 ngày lịch.
+- `npm test`: **64/64 test qua** trên PostgreSQL 16.15, bao gồm các trường hợp
+  tương tranh READ COMMITTED/REPEATABLE READ. Không thay đổi source/test để
+  thích nghi với PostgreSQL 16.
+- `prisma migrate status`: schema up to date. `prisma migrate diff` từ DB test
+  tới schema trong code trả exit code 0 và báo không có chênh lệch đối với các
+  cấu trúc Prisma biểu diễn được; CHECK/trigger được kiểm tra qua integrity test.
+- Kiểm tra nâng cấp lịch sử trên schema test riêng: backfill returnedAt từ
+  RETURN và snapshot checklist đúng; RETURNED thiếu biên bản bị chặn và rollback
+  toàn bộ DDL. Schema test được dọn sau kiểm tra.
+- Lần chạy seed trong Windows sandbox gặp lỗi hệ thống ở os.userInfo của tsx;
+  chạy ngoài sandbox trên chính container test thành công. Không sửa dependency
+  hay cấu hình dự án để né lỗi môi trường này.
+- GitHub CI chưa được chạy từ remote; xác minh PostgreSQL 16 ở local không thay
+  thế required checks/review DB OWNER trước merge. Giới hạn seed/Docker và
+  baseline DB đã có dữ liệu vẫn áp dụng như các mục trên.
