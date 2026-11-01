@@ -121,8 +121,9 @@ erDiagram
     DEPOSIT_LEDGERS {
         serial id PK
         int    booking_id FK
-        varchar type "HOLD | RELEASE | DEDUCT | VOID"
+        varchar type "DEPOSIT_HELD | RELEASE | DEDUCT | VOID"
         int    amount_vnd
+        varchar event_key "unique cùng booking_id và type"
     }
 ```
 
@@ -133,10 +134,25 @@ erDiagram
 Cột này phục vụ truy ngược "ngày này thuộc booking nào" mà không cần khoảng
 ngày logic nào khác.
 
+DB có CHECK `BOOKED <=> bookingId IS NOT NULL`. Khóa ngoại ghép
+`CalendarDay(bookingId, itemId) → Booking(id, itemId)` bảo đảm cùng thiết bị.
+Trigger kiểm tra ngày trong `[startDate, endDate]`, đồng thời ngăn sửa booking
+làm các ngày đã liên kết rơi ra ngoài khoảng thuê. Các CHECK/trigger nằm trong
+migration SQL; `db push` không cài đặt chúng.
+
+Thao tác gắn lịch UPDATE không đổi giá trị startDate của booking để tạo phiên
+bản dòng mới. Nhờ đó transaction REPEATABLE READ có snapshot cũ bị từ chối
+serialization, thay vì bỏ sót ngày vừa được transaction khác thêm. Service cần
+xử lý lỗi tương tranh/retry toàn transaction; không retry riêng một phần giao dịch.
+
 **b) `bookings` lưu snapshot tiền (`total_vnd`, `deposit_vnd`)** thay vì tính
 lại từ `rate_tiers`/`deposit_policies` lúc đọc. Chủ thiết bị có quyền sửa
 giá — lượt thuê đã chốt phải giữ nguyên con số thời điểm đặt, nếu không sổ
 cọc sẽ lệch với tiền đã ghi.
+
+DB bảo vệ totalVnd và depositVnd bất biến từ lúc INSERT booking, kể cả chưa có
+ledger. CHECK yêu cầu tiền không âm và endDate >= startDate; khoảng thuê bao
+gồm cả hai đầu, nên cùng ngày là một ngày thuê hợp lệ ở tầng dữ liệu.
 
 ---
 
@@ -173,6 +189,11 @@ Ký hiệu: **PK** khóa chính · **FK** khóa ngoại · **UK** unique.
 | `price_per_day_vnd` | Giá/ngày trong khoảng |
 | `percent` | % cọc trên `replacement_value_vnd`, chặn trên bởi `policy_settings.deposit_cap_percent` |
 
+RateTier có CHECK minDays >= 1, maxDays NULL hoặc >= minDays, giá không âm.
+Trigger serialize INSERT/UPDATE theo dòng Item và từ chối các khoảng giao nhau,
+kể cả hai writer đồng thời và maxDays NULL. Khoảng 1–2 và 3–6 hợp lệ; 1–3 và
+3–6 giao nhau tại ngày 3, không hợp lệ. Không tự bắt buộc phủ kín mọi số ngày.
+
 ### 3.4. `calendar_days` — bảng quan trọng thứ hai
 
 | Cột | Kiểu | NULL? | Mặc định | Khóa | Ý nghĩa |
@@ -208,31 +229,37 @@ tới), đặt/hủy chỉ **đổi `kind`**:
 | Kịch bản | Với `UNIQUE(item_id, date)` |
 | --- | --- |
 | An đặt ngày 14/11 → hủy | Dòng 14/11 đổi `BOOKED → FREE`. Linh đặt lại bình thường |
-| Hai buyer đặt cùng ngày | Cả hai UPDATE/INSERT cùng dòng → dòng thứ hai bị **DB từ chối** |
-| Script chèn thẳng vào DB quên check | Vẫn bị chặn — unique không có đường vòng |
+| Hai buyer đặt cùng ngày | UPDATE có điều kiện FREE trong transaction; kiểm tra đủ số dòng, bên thua rollback |
+| Script chèn thẳng dòng lịch trùng | Unique từ chối INSERT trùng; UPDATE cùng dòng cần điều kiện riêng |
 
 Nguyên tắc mirror từ [ADR-004 của template](https://github.com/NgDucLoc/MedBook-Case-Study-Base/blob/main/doc/adr/004-transaction-lock-booking.md):
 *quy tắc nghiệp vụ sống còn thì đặt ở cả code lẫn database.* Trong
-`bookingService.createBooking()` có check availability để trả lỗi 409 thân
-thiện; `UNIQUE(item_id, date)` là lớp bảo vệ cuối mà không đường code nào vượt qua.
+luồng booking cần kiểm tra số ngày chiếm được để trả lỗi 409 thân thiện.
+`UNIQUE(item_id, date)` chỉ bảo vệ tính duy nhất của dòng lịch, không tự khóa
+truy vấn đọc hay ngăn ghi đè bookingId. Booking service hiện chưa được triển khai.
 
-Đặt booking là **một transaction** gồm 3 ghi: tạo `Booking(REQUESTED)` → đổi
-các dòng `CalendarDay` sang `BOOKED` (+ `booking_id`) → ghi
-`DepositLedger(HOLD)`. Có điều kiện nào thất bại → rollback toàn bộ.
+Đặt booking là **một transaction**: tạo `Booking(REQUESTED)` → chiếm đủ ngày
+FREE → ghi `DepositLedger(DEPOSIT_HELD)` bằng snapshot cọc (bỏ qua nếu cọc 0)
+→ chuyển booking sang `DEPOSIT_HELD`. Có điều kiện nào thất bại → rollback
+toàn bộ. Seller duyệt sau đó: `DEPOSIT_HELD → APPROVED`, không giữ cọc lần hai.
 
 ---
 
 ## 5. Vòng đời dữ liệu (State Machine)
+
+`Booking.returnedAt` là timestamp UTC do trigger ghi một lần khi chuyển RETURNED;
+không nhận timestamp do client cung cấp, không đổi khi sửa updatedAt hay xử lý
+claim. Hạn nhả cọc tính từ returnedAt cộng claim_window_hours.
 
 ### 5.1. Vòng đời `bookings`
 
 ```mermaid
 stateDiagram-v2
     [*] --> REQUESTED : Buyer đặt lịch<br/>POST /api/bookings
-    REQUESTED --> APPROVED : Seller duyệt
-    REQUESTED --> CLOSED : Seller từ chối<br/>(ledger VOID, lịch trả FREE)
-    APPROVED --> DEPOSIT_HELD : cọc ghi HOLD
-    DEPOSIT_HELD --> PICKED_UP : giao máy<br/>+ biên bản PICKUP
+    REQUESTED --> DEPOSIT_HELD : hoàn tất giữ cọc trong transaction tạo booking
+    DEPOSIT_HELD --> APPROVED : Seller duyệt
+    DEPOSIT_HELD --> CLOSED : Seller từ chối<br/>(ledger VOID, lịch trả FREE)
+    APPROVED --> PICKED_UP : giao máy<br/>+ biên bản PICKUP
     PICKED_UP --> RETURN_PENDING : buyer trả
     RETURN_PENDING --> RETURNED : Seller ghi biên bản RETURN
     RETURNED --> CLOSED : hết 48h không claim<br/>→ ledger RELEASE tự động
@@ -246,8 +273,9 @@ stateDiagram-v2
 | Từ | Sang | Ai được làm | Điều kiện / Vi phạm |
 | --- | --- | --- | --- |
 | (mới) | `REQUESTED` | Buyer | Ngày không FREE → `409` |
-| `REQUESTED` | `APPROVED` | Seller (chủ item) | Buyer tự duyệt → `403` |
-| `REQUESTED` | `CLOSED` | Seller | Lịch trả `FREE`, ledger `VOID` |
+| `REQUESTED` | `DEPOSIT_HELD` | Hệ thống, trong transaction tạo booking | Đã chiếm đủ lịch và ghi cọc; cọc 0 không ghi ledger |
+| `DEPOSIT_HELD` | `APPROVED` | Seller (chủ item) | Buyer tự duyệt → `403`; không ghi cọc lần hai |
+| `DEPOSIT_HELD` | `CLOSED` | Seller | Lịch trả `FREE`, ledger `VOID` bằng số dư còn giữ |
 | `APPROVED` | `PICKED_UP` | Seller | Phải có biên bản `PICKUP` đầy đủ mục required |
 | `RETURNED` | `CLOSED` | **Hệ thống** (timer) | Không claim trong `claim_window_hours` → `RELEASE` |
 | `RETURNED` | `DISPUTED` | Seller hoặc Buyer | Claim mới chỉ khi biên bản RETURN có `NOT_OK` |
@@ -258,7 +286,7 @@ Ba điều cần nhớ:
 
 1. `CLOSED` là **trạng thái chết** — thuê lại phải tạo booking mới.
 2. Chuyển trạng thái là **UPDATE có điều kiện**:
-   `UPDATE bookings SET status='APPROVED' WHERE id=$1 AND status='REQUESTED' RETURNING id`
+   `UPDATE "Booking" SET status='APPROVED' WHERE id=$1 AND status='DEPOSIT_HELD' RETURNING id`
    — không trả dòng nào nghĩa là state sai → ném `409`. Không có khe hở thời gian.
 3. Timer nhả cọc và auto-suspension là **so sánh timestamp thuần** — không ML (giới hạn môn học).
 
@@ -274,6 +302,28 @@ stateDiagram-v2
 ---
 
 ## 6. Hạn chế đã biết
+
+- ConditionReportEntry lưu labelSnapshot và requiredSnapshot, được trigger lấy
+  từ template đúng category khi INSERT; caller không thể giả snapshot. Sửa mẫu
+  sau đó không đổi nội dung lịch sử. Identity/snapshot của entry không được sửa.
+- AuditLog có trigger chặn UPDATE/DELETE. Seed phát hiện booking/ledger/audit
+  thì bỏ qua và exit 0. Khi chưa có nghiệp vụ, wipe + seed là một transaction
+  SERIALIZABLE; lỗi rollback toàn bộ, CalendarDay xóa trước Booking.
+- AuditLog.actorId, DepositLedger.createdById và DamageClaim.resolvedById dùng
+  ON DELETE RESTRICT. Xóa user có lịch sử bị FK từ chối trực tiếp (23503), không
+  SET NULL gây UPDATE ngầm vào bảng append-only. isActive dùng khóa tài khoản;
+  các FK nullable vẫn cho phép NULL cho tác vụ hệ thống như trước.
+- Migration bổ sung snapshot cho bản ghi cũ từ mẫu hiện có, không phục hồi được
+  nhãn trước các lần sửa mẫu trong quá khứ. returnedAt cũ chỉ lấy từ biên bản
+  RETURN; booking RETURNED thiếu biên bản khiến migration bị chặn để DB OWNER
+  kiểm tra dữ liệu, không tự lấy updatedAt làm thời điểm trả.
+
+- Ledger: `amountVnd > 0`, `eventKey` không rỗng, unique theo
+  `(bookingId, eventKey, type)`; chỉ một DEPOSIT_HELD mỗi booking.
+  Số dư = DEPOSIT_HELD − RELEASE − DEDUCT − VOID. Trigger serialize ghi cọc,
+  chặn chi vượt số dư, sửa/xóa bút toán và sửa snapshot cọc đã ghi. Xem ADR-004.
+- Enum bút toán `HOLD` trong kế hoạch Excel được thống nhất thành `DEPOSIT_HELD`;
+  trạng thái Booking cùng tên thể hiện bước giữ cọc đã hoàn tất.
 
 - `item_photos.url` là URL ngoài — **không có xác minh ảnh tự động** (cấm AI/CV);
   độ tin cậy dựa vào slot ảnh bắt buộc theo checklist + Admin xét khiếu nại.

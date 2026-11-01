@@ -56,7 +56,7 @@ Cần Node.js 20+ và PostgreSQL đang chạy (có thể chỉ bật DB của Do
 docker compose up -d db       # chỉ bật database
 npm install
 cp .env.example .env          # giữ nguyên DATABASE_URL mặc định
-npx prisma db push            # đồng bộ schema
+npm run db:deploy             # migrate DB local mới/trống, gồm CHECK/trigger
 npm run db:seed               # dữ liệu mẫu
 npm run dev                   # http://localhost:3000
 ```
@@ -74,11 +74,16 @@ npm run dev                   # http://localhost:3000
 Cần PostgreSQL ở `localhost:55432` (bật bằng `docker compose up -d db`), rồi:
 ```bash
 npm install
-npx prisma db push && npm run db:seed
+npm run db:deploy && npm run db:seed
 npm test
 ```
 `npm test` chạy vitest — kiểm tra schema, seed và ràng buộc chống đặt chồng.
 Chi tiết: [`doc/regression-testing.md`](./doc/regression-testing.md).
+
+DB đã tạo bằng `db push` cần DB OWNER chuẩn bị baseline/upgrade trước; không
+reset DB dùng chung. Seed bỏ qua với exit 0 nếu đã có booking/ledger/audit,
+giữ dữ liệu và để Docker chạy app. Khi ba bảng trống, seed tái tạo dữ liệu mẫu
+trong transaction; nếu lỗi thì rollback. Không vô hiệu trigger append-only để seed.
 
 > Lưu ý: nếu source đặt trong thư mục đồng bộ cloud (OneDrive/iCloud/Dropbox),
 > filesystem chậm có thể làm `next dev` khởi động lâu — nên đặt project ở ổ thường.

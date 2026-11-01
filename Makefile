@@ -6,7 +6,7 @@
 # Hằng ngày:     make dev   (chạy ứng dụng, không xóa dữ liệu)
 # Kiểm thử:      make test  (sử dụng database gearloop_test riêng)
 #
-# CẢNH BÁO: make setup sẽ seed lại và xóa dữ liệu ứng dụng hiện có.
+# make setup bỏ qua seed nếu có booking/ledger/audit; nếu chưa có thì tạo lại mẫu.
 # Chỉ sử dụng với database local có thể khởi tạo lại.
 
 .PHONY: dev db setup down reset test
@@ -27,7 +27,7 @@ db:
 	docker compose up -d --wait db
 
 # Khởi tạo database và nạp dữ liệu mẫu cho lần chạy đầu tiên
-# CẢNH BÁO: Seed sẽ xóa dữ liệu ứng dụng hiện có
+# Seed giữ dữ liệu nghiệp vụ; chỉ tái tạo mẫu khi chưa có booking/ledger/audit
 setup: db
 	@test -f .env || cp .env.example .env
 	@test -d node_modules || npm ci

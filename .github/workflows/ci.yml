@@ -49,10 +49,8 @@ jobs:
         run: npm run lint
 
       - name: Sync schema and seed
-        # db push dùng cho giai đoạn chưa có migration đầu tiên.
-        # Sau khi GL-104 merge migration đầu, đổi sang: npx prisma migrate deploy
         run: |
-          npx prisma db push --skip-generate
+          npx prisma migrate deploy
           npm run db:seed
 
       - name: Build

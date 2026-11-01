@@ -6,7 +6,7 @@
 
 ## Bối cảnh
 
-Tiền cọc là "dòng tiền" của GearLoop: HOLD lúc đặt, RELEASE lúc trả đủ, DEDUCT
+Tiền cọc là "dòng tiền" của GearLoop: DEPOSIT_HELD lúc đặt, RELEASE lúc trả đủ, DEDUCT
 khi có bồi thường, VOID lúc từ chối. Cần sổ sách kiểm chứng được cho demo và
 cho test.
 
@@ -21,10 +21,29 @@ cho test.
 
 - `deposit_ledgers(booking_id, type, amount_vnd, reason, created_by_id)` —
   **chỉ INSERT, không bao giờ UPDATE/DELETE**.
-- Số dư hiện hành = SUM(ledger) của booking. Snapshot tiền cọc tại thời điểm
+- Mỗi `amountVnd` là số nguyên **dương**. Số dư hiện hành =
+  `SUM(DEPOSIT_HELD) - SUM(RELEASE) - SUM(DEDUCT) - SUM(VOID)` của booking.
+  `VOID` hủy phần cọc còn giữ: số tiền phải bằng số dư còn lại, không ghi thêm
+  `RELEASE` cho chính phần tiền đã VOID. Không ghi bút toán số tiền 0.
+  Snapshot tiền cọc tại thời điểm
   đặt nằm ở `bookings.deposit_vnd` (chủ sửa giá không làm lệch sổ cũ).
 - Mọi số tiền: **Int VND** (đồng, không số lẻ) — tránh floating point; field
   đặt tên `*Vnd`.
+- `eventKey` là khóa sự kiện ổn định do server tạo, giữ nguyên khi retry.
+  Unique `(bookingId, eventKey, type)` chặn ghi lại cùng loại bút toán của cùng
+  sự kiện; một lần phân xử vẫn ghi được cả DEDUCT và RELEASE chung eventKey.
+  Partial unique index bảo đảm chỉ một DEPOSIT_HELD mỗi booking, bằng đúng
+  `depositVnd`. Booking cọc 0 không ghi bút toán.
+- Trigger serialize các INSERT ledger bằng UPDATE khóa dòng Booking rồi đọc
+  lại tổng tiền. Tổng RELEASE + DEDUCT + VOID không được vượt DEPOSIT_HELD,
+  kể cả khi hai tác vụ dùng eventKey khác nhau. UPDATE này không đổi updatedAt.
+- Trigger từ chối UPDATE/DELETE ledger. Follow-up bảo vệ cả totalVnd và depositVnd
+  bất biến từ lúc tạo booking, kể cả chưa có bút toán.
+  Sau review, seed có booking/ledger/audit thì bỏ qua với exit 0. Nếu chưa có
+  nghiệp vụ, wipe + seed chạy trong transaction và rollback khi lỗi. Wipe không
+  DELETE ledger/audit, không tắt trigger để seed lại DB dùng chung.
+- AuditLog cũng append-only ở DB. Các liên kết user actor/creator/resolver dùng
+  ON DELETE RESTRICT để giữ danh tính lịch sử; khóa tài khoản bằng isActive.
 
 ## Hệ quả
 

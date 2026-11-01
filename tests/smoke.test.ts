@@ -1,5 +1,5 @@
 /**
- * Smoke test lõi schema + seed (chạy trong CI sau khi db push + seed).
+ * Smoke test lõi schema + seed (chạy trong CI sau khi migrate deploy + seed).
  * CẦN DATABASE_URL trỏ tới database đã seed — xem doc/regression-testing.md.
  * Không mock: truy vấn thật vào PostgreSQL, giống tinh thần test của template.
  */
@@ -43,7 +43,7 @@ describe("seed v1 (GL-109)", () => {
 });
 
 describe("ràng buộc cốt lõi (GL-107)", () => {
-  it("@@unique([itemId, date]) chặn tạo trùng ngày — đặt chồng bị DB từ chối", async () => {
+  it("@@unique([itemId, date]) chặn INSERT dòng lịch trùng", async () => {
     const day = await prisma.calendarDay.findFirst({ where: { kind: "FREE" } });
     expect(day).not.toBeNull();
     await expect(

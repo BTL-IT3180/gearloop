@@ -1,10 +1,10 @@
 /**
  * Seed dữ liệu mẫu GearLoop (GL-109).
- * Idempotent: xoá sạch theo thứ tự FK rồi nạp lại — chạy được lúc boot Docker
- * và chạy lại bao nhiêu lần cũng cho cùng một trạng thái.
+ * Có booking/ledger/audit: bỏ qua và exit 0, không xóa dữ liệu nghiệp vụ.
+ * Chưa có nghiệp vụ: wipe + seed trong một transaction, rollback nếu có lỗi.
  * Mật khẩu mọi tài khoản demo: demo123 (hash bcrypt — ADR-002).
  */
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -21,32 +21,30 @@ function dayFromToday(offsetDays: number): Date {
   return d;
 }
 
-async function wipe() {
+async function wipe(tx: Prisma.TransactionClient) {
   // Thứ tự xoá: bảng con → bảng cha.
-  await prisma.depositLedger.deleteMany();
-  await prisma.damageClaim.deleteMany();
-  await prisma.conditionReportEntry.deleteMany();
-  await prisma.conditionReport.deleteMany();
-  await prisma.review.deleteMany();
-  await prisma.booking.deleteMany();
-  await prisma.calendarDay.deleteMany();
-  await prisma.rateTier.deleteMany();
-  await prisma.depositPolicy.deleteMany();
-  await prisma.itemPhoto.deleteMany();
-  await prisma.item.deleteMany();
-  await prisma.checklistTemplateItem.deleteMany();
-  await prisma.category.deleteMany();
-  await prisma.auditLog.deleteMany();
-  await prisma.user.deleteMany();
-  await prisma.policySetting.deleteMany();
+  await tx.damageClaim.deleteMany();
+  await tx.conditionReportEntry.deleteMany();
+  await tx.conditionReport.deleteMany();
+  await tx.review.deleteMany();
+  await tx.calendarDay.deleteMany();
+  await tx.booking.deleteMany();
+  await tx.rateTier.deleteMany();
+  await tx.depositPolicy.deleteMany();
+  await tx.itemPhoto.deleteMany();
+  await tx.item.deleteMany();
+  await tx.checklistTemplateItem.deleteMany();
+  await tx.category.deleteMany();
+  await tx.user.deleteMany();
+  await tx.policySetting.deleteMany();
 }
 
-async function main() {
+async function seed(tx: Prisma.TransactionClient) {
   console.log("→ Xoá dữ liệu cũ ...");
-  await wipe();
+  await wipe(tx);
 
   console.log("→ Tạo PolicySetting ...");
-  await prisma.policySetting.createMany({
+  await tx.policySetting.createMany({
     data: [
       {
         key: "claim_window_hours",
@@ -68,7 +66,7 @@ async function main() {
 
   const hash = bcrypt.hashSync(DEMO_PASSWORD, 10);
   console.log("→ Tạo users (mật khẩu demo: demo123) ...");
-  const admin = await prisma.user.create({
+  const admin = await tx.user.create({
     data: {
       email: "admin@gearloop.local",
       passwordHash: hash,
@@ -76,7 +74,7 @@ async function main() {
       role: "ADMIN",
     },
   });
-  const mai = await prisma.user.create({
+  const mai = await tx.user.create({
     data: {
       email: "mai@gearloop.local",
       passwordHash: hash,
@@ -84,7 +82,7 @@ async function main() {
       role: "SELLER",
     },
   });
-  const lan = await prisma.user.create({
+  const lan = await tx.user.create({
     data: {
       email: "lan@gearloop.local",
       passwordHash: hash,
@@ -97,13 +95,13 @@ async function main() {
     ["linh@gearloop.local", "Trần Thị Linh"],
     ["huy@gearloop.local", "Lê Văn Huy"],
   ] as const) {
-    await prisma.user.create({
+    await tx.user.create({
       data: { email, passwordHash: hash, fullName: name, role: "BUYER" },
     });
   }
 
   console.log("→ Tạo categories + checklist ...");
-  const camera = await prisma.category.create({
+  const camera = await tx.category.create({
     data: {
       name: "Máy ảnh & Quay phim",
       description: "Body, lens, máy quay, phụ kiện ánh sáng",
@@ -118,7 +116,7 @@ async function main() {
       },
     },
   });
-  const tools = await prisma.category.create({
+  const tools = await tx.category.create({
     data: {
       name: "Dụng cụ & Sửa chữa",
       description: "Máy khoan, cầm tay, thang, dụng cụ sửa nhà",
@@ -132,7 +130,7 @@ async function main() {
       },
     },
   });
-  const outdoor = await prisma.category.create({
+  const outdoor = await tx.category.create({
     data: {
       name: "Cắm trại & Ngoài trời",
       description: "Lều, bếp, túi ngủ, đèn trại",
@@ -217,7 +215,7 @@ async function main() {
 
   let dayCount = 0;
   for (const it of items) {
-    const created = await prisma.item.create({
+    const created = await tx.item.create({
       data: {
         ownerId: it.owner,
         categoryId: it.category,
@@ -226,14 +224,14 @@ async function main() {
         replacementValueVnd: it.replacement,
       },
     });
-    await prisma.itemPhoto.createMany({
+    await tx.itemPhoto.createMany({
       data: it.photos.map((url, i) => ({
         itemId: created.id,
         url,
         isBaseline: i === 0,
       })),
     });
-    await prisma.rateTier.createMany({
+    await tx.rateTier.createMany({
       data: it.tiers.map((t) => ({
         itemId: created.id,
         minDays: t.minDays,
@@ -241,10 +239,10 @@ async function main() {
         pricePerDayVnd: t.price,
       })),
     });
-    await prisma.depositPolicy.create({
+    await tx.depositPolicy.create({
       data: { itemId: created.id, percent: it.depositPercent },
     });
-    await prisma.calendarDay.createMany({
+    await tx.calendarDay.createMany({
       data: Array.from({ length: CALENDAR_DAYS_AHEAD }, (_, i) => ({
         itemId: created.id,
         date: dayFromToday(i),
@@ -259,6 +257,19 @@ async function main() {
       `${items.length} items, ${dayCount} calendar days, 3 PolicySettings. ` +
       `Admin: ${admin.email} / demo123`,
   );
+}
+
+async function main() {
+  await prisma.$transaction(async (tx) => {
+    const [bookings, ledger, audits] = await Promise.all([
+      tx.booking.count(), tx.depositLedger.count(), tx.auditLog.count(),
+    ]);
+    if (bookings > 0 || ledger > 0 || audits > 0) {
+      console.log("Skip seed: existing booking/ledger/audit data is preserved.");
+      return;
+    }
+    await seed(tx);
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 30_000 });
 }
 
 main()
