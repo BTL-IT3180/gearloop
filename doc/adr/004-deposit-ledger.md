@@ -37,9 +37,12 @@ cho test.
 - Trigger serialize các INSERT ledger bằng UPDATE khóa dòng Booking rồi đọc
   lại tổng tiền. Tổng RELEASE + DEDUCT + VOID không được vượt DEPOSIT_HELD,
   kể cả khi hai tác vụ dùng eventKey khác nhau. UPDATE này không đổi updatedAt.
-- Trigger từ chối UPDATE/DELETE ledger và đổi `depositVnd` đã có bút toán.
+- Trigger từ chối UPDATE/DELETE ledger. Follow-up bảo vệ cả totalVnd và depositVnd
+  bất biến từ lúc tạo booking, kể cả chưa có bút toán.
   Seed hiện tại dùng DELETE, nên sẽ bị từ chối nếu DB đã có ledger; chỉ seed DB
   local/test trống. Không tắt trigger để seed lại DB dùng chung.
+- AuditLog cũng append-only ở DB. Không chạy seed nếu đã có audit/ledger:
+  wipe hiện không transaction và có thể xóa một phần bảng trước khi bị chặn.
 
 ## Hệ quả
 

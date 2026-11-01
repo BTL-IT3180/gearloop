@@ -72,3 +72,45 @@ booking; thống nhất DEPOSIT_HELD và luồng giữ cọc trước khi Seller
 
 Validation: Prisma validate/generate, lint, typecheck, build; 37 test qua trên
 PostgreSQL 18 tạm. CI PostgreSQL 16 và nâng cấp DB có dữ liệu cần review riêng.
+
+## Follow-up — sửa lỗi sau review
+
+Phạm vi người phụ trách yêu cầu: lỗi snapshot cũ của lịch, ngày/tiền booking,
+audit append-only, tier giá chồng nhau, lịch sử checklist và mốc trả đồ.
+
+- Giữ nguyên migration đầu tiên; thêm một migration follow-up
+  `20261101010000_harden_booking_history`, có BEGIN/COMMIT để thất bại thì
+  rollback toàn bộ. Không tự sửa migration đã áp dụng hoặc reset dữ liệu.
+- Trigger gắn lịch UPDATE không đổi startDate của booking để tạo row version,
+  khiến updater REPEATABLE READ dùng snapshot cũ bị serialization failure.
+  Bộ test điều phối snapshot → INSERT lịch commit → UPDATE khoảng ngày.
+- CHECK endDate >= startDate, tiền booking không âm; giữ khoảng ngày đóng
+  theo schema hiện có. totalVnd và depositVnd bất biến từ khi tạo booking.
+- AuditLog chặn UPDATE/DELETE. Seed/Docker giữ nguyên theo quyết định trước;
+  seed cũng bị chặn khi có audit, có thể xóa một phần dữ liệu trước khi lỗi.
+- RateTier kiểm tra min/max/giá và serialize writer qua Item để chặn khoảng
+  giao nhau, gồm cả trần mở và transaction đồng thời. Không thêm extension.
+- ConditionReportEntry có labelSnapshot/requiredSnapshot. Trigger lấy giá trị
+  thật từ template đúng category và bảo vệ identity/snapshot khỏi chỉnh sửa.
+- Booking.returnedAt do DB ghi một lần khi chuyển RETURNED và giữ nguyên khi
+  có cập nhật sau đó; hợp đồng nhả cọc chuyển sang returnedAt, không dùng updatedAt.
+
+Validation follow-up:
+
+- Prisma validate/generate, lint, typecheck và build: đạt.
+- Migrate deploy và npm test: 64/64 test qua trên PostgreSQL 18 tạm, gồm DB mới
+  chạy cả hai migration và DB test đã có migration đầu được nâng cấp.
+- Kiểm tra nâng cấp dữ liệu lịch sử riêng: backfill snapshot và returnedAt từ
+  biên bản RETURN đúng; RETURNED thiếu biên bản bị từ chối và rollback DDL.
+- Chưa xác minh PostgreSQL 16/GitHub CI; không migrate DB sẵn có của người dùng.
+
+Giới hạn còn lại:
+
+- Nhãn checklist lịch sử trước migration không phục hồi được nếu mẫu đã bị sửa;
+  backfill dùng mẫu đang có và cần DB OWNER review. RETURNED thiếu biên bản
+  không được tự gán thời điểm từ updatedAt.
+- API/service booking, phân quyền theo tài nguyên, kiểm tra đủ lịch/biên bản và
+  state machine runtime vẫn chưa triển khai. Lượt này sửa ràng buộc DB, không
+  khẳng định hoàn thành tính năng booking hay toàn bộ E0-F1-T3.
+- PR follow-up đề xuất: `fix(db): harden booking concurrency and historical data`.
+  DB OWNER review migration, pod D review test/docs. Seed/Docker không thay đổi.

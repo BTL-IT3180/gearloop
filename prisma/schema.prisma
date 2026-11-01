@@ -197,6 +197,7 @@ model Booking {
   depositVnd Int // snapshot tiền cọc lúc đặt
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
+  returnedAt DateTime? // DB ghi một lần khi chuyển RETURNED; không dùng updatedAt tính hạn claim.
 
   item            Item              @relation(fields: [itemId], references: [id])
   buyer           User              @relation(fields: [buyerId], references: [id])
@@ -231,6 +232,8 @@ model ConditionReportEntry {
   id              Int             @id @default(autoincrement())
   reportId        Int
   checklistItemId Int
+  labelSnapshot   String // Nội dung checklist tại lúc lập biên bản, không phụ thuộc mẫu đang sửa.
+  requiredSnapshot Boolean
   state           ReportItemState
   note            String?
   photoUrl        String?

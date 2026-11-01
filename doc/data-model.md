@@ -140,10 +140,19 @@ Trigger kiểm tra ngày trong `[startDate, endDate]`, đồng thời ngăn sử
 làm các ngày đã liên kết rơi ra ngoài khoảng thuê. Các CHECK/trigger nằm trong
 migration SQL; `db push` không cài đặt chúng.
 
+Thao tác gắn lịch UPDATE không đổi giá trị startDate của booking để tạo phiên
+bản dòng mới. Nhờ đó transaction REPEATABLE READ có snapshot cũ bị từ chối
+serialization, thay vì bỏ sót ngày vừa được transaction khác thêm. Service cần
+xử lý lỗi tương tranh/retry toàn transaction; không retry riêng một phần giao dịch.
+
 **b) `bookings` lưu snapshot tiền (`total_vnd`, `deposit_vnd`)** thay vì tính
 lại từ `rate_tiers`/`deposit_policies` lúc đọc. Chủ thiết bị có quyền sửa
 giá — lượt thuê đã chốt phải giữ nguyên con số thời điểm đặt, nếu không sổ
 cọc sẽ lệch với tiền đã ghi.
+
+DB bảo vệ totalVnd và depositVnd bất biến từ lúc INSERT booking, kể cả chưa có
+ledger. CHECK yêu cầu tiền không âm và endDate >= startDate; khoảng thuê bao
+gồm cả hai đầu, nên cùng ngày là một ngày thuê hợp lệ ở tầng dữ liệu.
 
 ---
 
@@ -179,6 +188,11 @@ Ký hiệu: **PK** khóa chính · **FK** khóa ngoại · **UK** unique.
 | `min_days` / `max_days` | Khoảng ngày áp giá. `max_days NULL` = trần mở. `UNIQUE(item_id, min_days)` |
 | `price_per_day_vnd` | Giá/ngày trong khoảng |
 | `percent` | % cọc trên `replacement_value_vnd`, chặn trên bởi `policy_settings.deposit_cap_percent` |
+
+RateTier có CHECK minDays >= 1, maxDays NULL hoặc >= minDays, giá không âm.
+Trigger serialize INSERT/UPDATE theo dòng Item và từ chối các khoảng giao nhau,
+kể cả hai writer đồng thời và maxDays NULL. Khoảng 1–2 và 3–6 hợp lệ; 1–3 và
+3–6 giao nhau tại ngày 3, không hợp lệ. Không tự bắt buộc phủ kín mọi số ngày.
 
 ### 3.4. `calendar_days` — bảng quan trọng thứ hai
 
@@ -233,6 +247,10 @@ toàn bộ. Seller duyệt sau đó: `DEPOSIT_HELD → APPROVED`, không giữ c
 
 ## 5. Vòng đời dữ liệu (State Machine)
 
+`Booking.returnedAt` là timestamp UTC do trigger ghi một lần khi chuyển RETURNED;
+không nhận timestamp do client cung cấp, không đổi khi sửa updatedAt hay xử lý
+claim. Hạn nhả cọc tính từ returnedAt cộng claim_window_hours.
+
 ### 5.1. Vòng đời `bookings`
 
 ```mermaid
@@ -284,6 +302,17 @@ stateDiagram-v2
 ---
 
 ## 6. Hạn chế đã biết
+
+- ConditionReportEntry lưu labelSnapshot và requiredSnapshot, được trigger lấy
+  từ template đúng category khi INSERT; caller không thể giả snapshot. Sửa mẫu
+  sau đó không đổi nội dung lịch sử. Identity/snapshot của entry không được sửa.
+- AuditLog có trigger chặn UPDATE/DELETE. Seed/Docker giữ nguyên nên seed sẽ
+  thất bại nếu đã có audit hoặc ledger; không seed DB cần giữ dữ liệu. Vì wipe
+  hiện không nằm trong transaction, seed có thể xóa một phần dữ liệu trước lỗi.
+- Migration bổ sung snapshot cho bản ghi cũ từ mẫu hiện có, không phục hồi được
+  nhãn trước các lần sửa mẫu trong quá khứ. returnedAt cũ chỉ lấy từ biên bản
+  RETURN; booking RETURNED thiếu biên bản khiến migration bị chặn để DB OWNER
+  kiểm tra dữ liệu, không tự lấy updatedAt làm thời điểm trả.
 
 - Ledger: `amountVnd > 0`, `eventKey` không rỗng, unique theo
   `(bookingId, eventKey, type)`; chỉ một DEPOSIT_HELD mỗi booking.

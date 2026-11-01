@@ -60,9 +60,11 @@ async function rollbackTest(run: (tx: Prisma.TransactionClient) => Promise<void>
   }
 }
 
-function createBooking(client: Prisma.TransactionClient | PrismaClient) {
+function createBooking(client: Prisma.TransactionClient | PrismaClient,
+  changes: Partial<Prisma.BookingUncheckedCreateInput> = {}) {
   return client.booking.create({ data: {
     itemId, buyerId, startDate, endDate, totalVnd: 3_000, depositVnd: 1_000,
+    ...changes,
   } });
 }
 
@@ -72,6 +74,32 @@ function entry(bookingId: number, type: Prisma.DepositLedgerCreateManyInput["typ
 }
 
 describe("CalendarDay booking relationship", () => {
+  it.each([Prisma.TransactionIsolationLevel.ReadCommitted, Prisma.TransactionIsolationLevel.RepeatableRead])(
+    "rejects shortening a booking after a concurrent calendar insert: %s", async (isolationLevel) => {
+      const booking = await createBooking(db);
+      let snapshotReady!: () => void;
+      let continueUpdate!: () => void;
+      const ready = new Promise<void>((resolve) => { snapshotReady = resolve; });
+      const inserted = new Promise<void>((resolve) => { continueUpdate = resolve; });
+      const update = db.$transaction(async (tx) => {
+        await tx.booking.findUniqueOrThrow({ where: { id: booking.id } });
+        snapshotReady();
+        await inserted;
+        return tx.booking.update({ where: { id: booking.id }, data: { endDate: startDate } });
+      }, { isolationLevel, timeout: 10_000 });
+      const rejected = expect(update).rejects.toThrow();
+      try {
+        await ready;
+        await db.calendarDay.create({ data: { itemId, date: endDate, kind: "BOOKED", bookingId: booking.id } });
+      } finally { continueUpdate(); }
+      await rejected;
+      expect((await db.booking.findUniqueOrThrow({ where: { id: booking.id } })).endDate).toEqual(endDate);
+      // Keep the shared item/date available for the next isolation case.
+      await db.calendarDay.updateMany({ where: { bookingId: booking.id }, data: { kind: "FREE", bookingId: null } });
+      await db.calendarDay.deleteMany({ where: { itemId, date: endDate } });
+    },
+  );
+
   it("accepts FREE/BLOCKED without booking and BOOKED within the matching booking", async () => {
     await rollbackTest(async (tx) => {
       const booking = await createBooking(tx);
@@ -214,5 +242,163 @@ describe("DepositLedger invariants", () => {
     expect(outcomes.filter((result) => result.status === "fulfilled")).toHaveLength(1);
     expect(outcomes.filter((result) => result.status === "rejected")).toHaveLength(1);
     expect(await db.depositLedger.count({ where: { bookingId: booking.id, type: "RELEASE" } })).toBe(1);
+  });
+});
+
+describe("Booking values and history", () => {
+  it.each([
+    { totalVnd: -1 }, { depositVnd: -1 },
+    { startDate: endDate, endDate: startDate },
+  ])("rejects invalid booking data: %j", async (changes) => {
+    await rollbackTest(async (tx) => {
+      await expect(createBooking(tx, changes)).rejects.toThrow();
+    });
+  });
+
+  it("accepts a one-day booking with zero money", async () => {
+    await rollbackTest(async (tx) => {
+      const booking = await createBooking(tx, { endDate: startDate, totalVnd: 0, depositVnd: 0 });
+      expect(booking.endDate).toEqual(startDate);
+    });
+  });
+
+  it.each([{ totalVnd: 4_000 }, { depositVnd: 2_000 }])("protects money snapshots before ledger writes: %j", async (data) => {
+    await rollbackTest(async (tx) => {
+      const booking = await createBooking(tx);
+      await expect(tx.booking.update({ where: { id: booking.id }, data })).rejects.toThrow();
+    });
+  });
+
+  it("records return time once and retains it across subsequent updates", async () => {
+    await rollbackTest(async (tx) => {
+      const booking = await createBooking(tx, { status: "RETURN_PENDING" });
+      const returned = await tx.booking.update({ where: { id: booking.id }, data: { status: "RETURNED" } });
+      expect(returned.returnedAt).toBeInstanceOf(Date);
+      const edited = await tx.booking.update({ where: { id: booking.id }, data: { updatedAt: new Date("2035-01-01") } });
+      expect(edited.returnedAt).toEqual(returned.returnedAt);
+      const disputed = await tx.booking.update({ where: { id: booking.id }, data: { status: "DISPUTED" } });
+      expect(disputed.returnedAt).toEqual(returned.returnedAt);
+    });
+  });
+
+  it.each([null, new Date("2000-01-01")])("rejects changing recorded return time to %s", async (returnedAt) => {
+    await rollbackTest(async (tx) => {
+      const booking = await createBooking(tx, { status: "RETURNED" });
+      await expect(tx.booking.update({ where: { id: booking.id }, data: { returnedAt } })).rejects.toThrow();
+    });
+  });
+
+  it("rejects a manually supplied return time before return", async () => {
+    await rollbackTest(async (tx) => {
+      await expect(createBooking(tx, { returnedAt: new Date("2000-01-01") })).rejects.toThrow();
+    });
+  });
+});
+
+describe("AuditLog append-only", () => {
+  it.each(["update", "delete"])("rejects %s of an audit entry", async (operation) => {
+    await rollbackTest(async (tx) => {
+      const audit = await tx.auditLog.create({ data: { action: "booking.create", entity: "Booking" } });
+      const write = operation === "update"
+        ? tx.auditLog.update({ where: { id: audit.id }, data: { action: "rewritten" } })
+        : tx.auditLog.delete({ where: { id: audit.id } });
+      await expect(write).rejects.toThrow();
+    });
+  });
+});
+
+describe("RateTier ranges", () => {
+  it.each([
+    { minDays: 0, maxDays: 2, pricePerDayVnd: 1 },
+    { minDays: 3, maxDays: 2, pricePerDayVnd: 1 },
+    { minDays: 1, maxDays: 2, pricePerDayVnd: -1 },
+  ])("rejects invalid tier values: %j", async (data) => {
+    await rollbackTest(async (tx) => {
+      await expect(tx.rateTier.create({ data: { itemId, ...data } })).rejects.toThrow();
+    });
+  });
+
+  it("accepts adjacent tiers and an open-ended tier", async () => {
+    await rollbackTest(async (tx) => {
+      await tx.rateTier.createMany({ data: [
+        { itemId, minDays: 1, maxDays: 2, pricePerDayVnd: 0 },
+        { itemId, minDays: 3, maxDays: 6, pricePerDayVnd: 100 },
+        { itemId, minDays: 7, maxDays: null, pricePerDayVnd: 90 },
+      ] });
+      expect(await tx.rateTier.count({ where: { itemId } })).toBe(3);
+    });
+  });
+
+  it.each([3, null])("rejects overlapping ranges with maxDays %s", async (maxDays) => {
+    await rollbackTest(async (tx) => {
+      await tx.rateTier.create({ data: { itemId, minDays: 1, maxDays, pricePerDayVnd: 100 } });
+      await expect(tx.rateTier.create({ data: { itemId, minDays: 2, maxDays: 4, pricePerDayVnd: 90 } })).rejects.toThrow();
+    });
+  });
+
+  it("rejects updating a tier into another tier's range", async () => {
+    await rollbackTest(async (tx) => {
+      await tx.rateTier.create({ data: { itemId, minDays: 1, maxDays: 2, pricePerDayVnd: 100 } });
+      const tier = await tx.rateTier.create({ data: { itemId, minDays: 3, maxDays: null, pricePerDayVnd: 90 } });
+      await expect(tx.rateTier.update({ where: { id: tier.id }, data: { minDays: 2 } })).rejects.toThrow();
+    });
+  });
+
+  it.each([Prisma.TransactionIsolationLevel.ReadCommitted, Prisma.TransactionIsolationLevel.RepeatableRead])(
+    "serializes concurrent overlapping tiers: %s", async (isolationLevel) => {
+      const original = await db.item.findUniqueOrThrow({ where: { id: itemId } });
+      const item = await db.item.create({ data: { ownerId: original.ownerId,
+        categoryId: original.categoryId, replacementValueVnd: 1_000, title: "Tier race" } });
+      const outcomes = await Promise.allSettled([
+        db.$transaction((tx) => tx.rateTier.create({ data: { itemId: item.id, minDays: 1, maxDays: 3, pricePerDayVnd: 100 } }), { isolationLevel }),
+        db.$transaction((tx) => tx.rateTier.create({ data: { itemId: item.id, minDays: 2, maxDays: 4, pricePerDayVnd: 90 } }), { isolationLevel }),
+      ]);
+      expect(outcomes.filter((outcome) => outcome.status === "fulfilled")).toHaveLength(1);
+      expect(outcomes.filter((outcome) => outcome.status === "rejected")).toHaveLength(1);
+    },
+  );
+});
+
+async function checklistFixture(tx: Prisma.TransactionClient) {
+  const booking = await createBooking(tx);
+  const item = await tx.item.findUniqueOrThrow({ where: { id: itemId } });
+  const template = await tx.checklistTemplateItem.create({ data: {
+    categoryId: item.categoryId, label: "Lens intact", required: true,
+  } });
+  const report = await tx.conditionReport.create({ data: { bookingId: booking.id, reporterId: buyerId, phase: "PICKUP" } });
+  const entryData = { reportId: report.id, checklistItemId: template.id, state: "OK" as const,
+    labelSnapshot: "Untrusted label", requiredSnapshot: false };
+  return { template, entryData };
+}
+
+describe("Checklist history snapshots", () => {
+  it("captures actual template values and retains them after template edits", async () => {
+    await rollbackTest(async (tx) => {
+      const { template, entryData } = await checklistFixture(tx);
+      const entry = await tx.conditionReportEntry.create({ data: entryData });
+      expect(entry.labelSnapshot).toBe(template.label);
+      expect(entry.requiredSnapshot).toBe(true);
+      await tx.checklistTemplateItem.update({ where: { id: template.id }, data: { label: "Lens clean", required: false } });
+      const historical = await tx.conditionReportEntry.findUniqueOrThrow({ where: { id: entry.id } });
+      expect(historical.labelSnapshot).toBe("Lens intact");
+      expect(historical.requiredSnapshot).toBe(true);
+    });
+  });
+
+  it.each([{ labelSnapshot: "rewritten" }, { requiredSnapshot: false }])("rejects rewriting a checklist snapshot: %j", async (data) => {
+    await rollbackTest(async (tx) => {
+      const { entryData } = await checklistFixture(tx);
+      const entry = await tx.conditionReportEntry.create({ data: entryData });
+      await expect(tx.conditionReportEntry.update({ where: { id: entry.id }, data })).rejects.toThrow();
+    });
+  });
+
+  it("rejects a checklist from another category", async () => {
+    await rollbackTest(async (tx) => {
+      const { entryData } = await checklistFixture(tx);
+      const category = await tx.category.create({ data: { name: "Other checklist category" } });
+      const template = await tx.checklistTemplateItem.create({ data: { categoryId: category.id, label: "Other" } });
+      await expect(tx.conditionReportEntry.create({ data: { ...entryData, checklistItemId: template.id } })).rejects.toThrow();
+    });
   });
 });

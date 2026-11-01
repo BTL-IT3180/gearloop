@@ -84,6 +84,10 @@ npx prisma migrate deploy
 - Theo quyết định trong lượt sửa E0-F1-T3, giữ nguyên seed/Docker. Docker luôn
   chạy seed trước khi start nên **khởi động app sẽ thất bại nếu DB đã có ledger**.
   Cần task riêng cho bootstrap không phá dữ liệu; không tự sửa trong phạm vi này.
+- Follow-up bảo vệ AuditLog append-only: seed cũng bị chặn nếu đã có audit log.
+  Wipe không transaction, nên có thể xóa một phần dữ liệu trước khi bị chặn.
+  Không seed DB có dữ liệu cần giữ. Migration mới backfill thời điểm trả chỉ
+  từ biên bản RETURN; RETURNED thiếu chứng cứ bị chặn, cần DB OWNER xử lý.
 - Không tự ý sửa schema, tạo migration hoặc thay đổi quy trình database ngoài phạm vi issue được giao và quyền hạn được phân công.
 
 ## 3. Môi trường

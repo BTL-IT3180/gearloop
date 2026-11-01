@@ -65,11 +65,15 @@ POST /api/bookings { itemId, startDate, endDate }
 
 ## 5. Nhả cọc tự động (S2)
 
-Cron/on-read check: `booking.status = RETURNED` và `now > updatedAt +
+Cron/on-read check: `booking.status = RETURNED` và `now > returnedAt +
 claim_window_hours` và không có claim OPEN/UNDER_REVIEW → transaction:
 `ledger RELEASE` + `AuditLog("ledger.auto_release", actorId=null)` +
 `status = CLOSED`. Admin có nút "chạy kiểm tra ngay" (dev-only, env flag)
 để demo không phải đợi 48h.
+
+`returnedAt` do DB ghi một lần khi status chuyển sang RETURNED, không cho client
+gán hoặc sửa lại. Các cập nhật booking/ledger sau đó không dịch mốc này. Mốc thời
+gian được ghi UTC. Service tương lai phải đọc returnedAt, không dùng updatedAt.
 
 ## 6. Xét khiếu nại (S3)
 

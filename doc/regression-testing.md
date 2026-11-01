@@ -22,6 +22,11 @@ kind/bookingId, tiền dương, eventKey, cọc duy nhất, VOID, append-only, s
 và hai lần RELEASE đồng thời (cùng khóa hoặc khác khóa). Đây là test DB,
 không phải kiểm thử API hay state machine service chưa triển khai.
 
+Follow-up bổ sung test điều phối snapshot cũ khi gắn lịch/rút khoảng ngày ở
+READ COMMITTED và REPEATABLE READ; CHECK tiền/ngày; audit append-only;
+tier liền kề/chồng/mở và tương tranh; tiền snapshot bất biến; returnedAt cố định;
+snapshot checklist không bị sửa theo template và từ chối checklist khác category.
+
 ## 2. Kế hoạch mở rộng theo sprint
 
 | Sprint | Thêm test |

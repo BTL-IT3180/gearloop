@@ -31,5 +31,9 @@ data-model.md mục 4).
   Unique chỉ chặn INSERT trùng; UPDATE phải có điều kiện FREE và kiểm tra số dòng.
 - Khóa ngoại ghép buộc lịch/booking cùng item. CHECK bảo vệ kind/bookingId;
   trigger kiểm tra khoảng ngày và bảo vệ khi sửa ngược từ booking.
+- Follow-up: trigger gắn lịch tạo phiên bản mới của dòng Booking bằng UPDATE
+  không đổi startDate. Chỉ khóa FOR SHARE không đủ khi updater dùng snapshot
+  REPEATABLE READ từ trước lúc lịch được thêm. Lỗi serialization phải retry
+  toàn transaction ở tầng service khi luồng booking được triển khai.
 - Seller "chặn ngày bảo trì" = CRUD `kind = BLOCKED` — không logic đặc biệt.
 - Giới hạn 60 ngày nhìn thấy trước — mở rộng là một job chạy hằng ngày (không blocking).

@@ -210,7 +210,8 @@ npm run dev                   # http://localhost:3000
 
 DB đã có schema/dữ liệu từ `db push` cần DB OWNER chuẩn bị baseline/upgrade;
 không reset hoặc chạy migration đầu tiên trực tiếp. Xem `doc/cicd.md` mục 2.1.
-Seed dùng DELETE và sẽ bị chặn nếu đã có ledger append-only.
+Seed dùng DELETE và sẽ bị chặn nếu đã có ledger/audit append-only; wipe không
+transaction nên có thể xóa một phần dữ liệu trước lỗi. Không seed DB cần giữ dữ liệu.
 
 Biến môi trường (xem `.env.example`):
 
