@@ -124,5 +124,22 @@ Xác minh local ngày 02/11/2026:
 
 Đã bàn giao catalog, schema dùng chung, envelope và ghi chú NTF. Review cần
 phối hợp pod A cho contract auth, pod D cho test/docs; chốt các mã pending,
-payload NTF và bổ sung mã cho domain chưa được B4 bao phủ. Chưa xác minh CI remote,
-chưa commit/push hoặc tạo PR trong lượt triển khai này.
+payload NTF và bổ sung mã cho domain chưa được B4 bao phủ. Commit triển khai:
+`b9e2b02`. Chưa xác minh CI remote hoặc tạo PR.
+
+### Regression trước PR — 03/11/2026
+
+- PostgreSQL **16.15**, container `postgres:16-alpine` tạm cô lập, cổng loopback
+  ngẫu nhiên và dữ liệu tmpfs; không dùng volume hoặc database dev/chung.
+- Prisma validate và generate (6.19.3): đạt.
+- Cả 3 migration deploy thành công từ DB trống; migrate status up to date.
+- Seed thành công: 6 users, 3 categories, 4 items, 240 ngày lịch.
+- `npm.cmd run lint`, `npm.cmd run typecheck -- --incremental false`,
+  `npm.cmd run build`: đạt.
+- Toàn bộ `npm.cmd test`: **103/103 đạt**, 4 file:
+  schema-integrity 62, seed 5, smoke 5, api-contract 31.
+- Seed lần đầu trong sandbox lỗi `uv_os_get_passwd`; seed và toàn bộ test
+  chạy ngoài sandbox trên cùng DB tạm đều thành công. Không sửa code để né lỗi.
+- Prisma cảnh báo cấu hình package.json#prisma sẽ bị bỏ ở Prisma 7; dự án vẫn
+  dùng Prisma 6, không thay dependency/config trong Task 5.
+- Kết quả local không thay thế CI remote và review chéo.
