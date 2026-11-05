@@ -1,29 +1,31 @@
 import { NextResponse } from "next/server";
-import { AppError } from "@/server/errors";
+import type { ApiFailure, ApiSuccess } from "../../lib/api-response";
+import { AppError } from "../errors";
 
 type RouteContext = { params: Promise<Record<string, string>> };
 
 // Khuôn mẫu chung của mọi API route (mirror ADR-006 của template):
-// handler chỉ trả về data; helper lo gói { data } và bắt AppError thành { error }.
-export function withApi(
-  handler: (req: Request, ctx: RouteContext) => Promise<unknown>,
+// handler chỉ trả data; helper gói { data } và bắt AppError thành { error, code }.
+export function withApi<T>(
+  handler: (req: Request, ctx: RouteContext) => Promise<T>,
 ) {
   return async (req: Request, ctx: RouteContext) => {
     try {
       const data = await handler(req, ctx);
-      return NextResponse.json({ data });
+      return NextResponse.json({ data } satisfies ApiSuccess<T>);
     } catch (error) {
       if (error instanceof AppError) {
         return NextResponse.json(
-          { error: error.message },
+          { error: error.message, code: error.code } satisfies ApiFailure,
           { status: error.status },
         );
       }
-      // Lỗi chưa phân loại: log đầy đủ cho dev, trả thông điệp chung cho client.
-      console.error("[api] unhandled error:", error);
+      // Không log exception thô: có thể chứa request, thông tin DB hoặc secret.
+      console.error("[api] unhandled error");
+      const fallback = new AppError("ERR-SYS-001");
       return NextResponse.json(
-        { error: "Lỗi hệ thống" },
-        { status: 500 },
+        { error: fallback.message, code: fallback.code } satisfies ApiFailure,
+        { status: fallback.status },
       );
     }
   };

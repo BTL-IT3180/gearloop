@@ -171,7 +171,9 @@ Chi tiết: [doc/data-model.md](./doc/data-model.md).
 
 ## API
 
-Mọi endpoint trả JSON. Thành công → `{ "data": ... }`, thất bại → `{ "error": "..." }`.
+Mọi endpoint trả JSON. Thành công → `{ "data": ... }`, thất bại →
+`{ "error": "...", "code": "ERR-USR-xxx hoặc ERR-SYS-xxx" }`.
+Catalog và cách validate đầu vào: [doc/backend-flows.md](./doc/backend-flows.md).
 
 | Method | Đường dẫn | Vai trò | Trạng thái | Mô tả |
 | --- | --- | --- | --- | --- |

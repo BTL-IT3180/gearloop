@@ -8,22 +8,30 @@ luồng có logic phức tạp.
 
 ## 1. Hợp đồng phản hồi (mirror template)
 
-Thành công: `{ "data": <kết quả> }` — thất bại: `{ "error": "<thông điệp tiếng Việt>" }`.
+Thành công: `{ "data": <kết quả> }` — thất bại:
+`{ "error": "<thông điệp tiếng Việt>", "code": "ERR-USR-xxx hoặc ERR-SYS-xxx" }`.
+Field `error` tiếp tục là chuỗi; `code` được bổ sung ở E0-F1-T5 (#64).
+Kiểu dùng chung: `ApiResponse<T>` trong `src/lib/api-response.ts`.
 
 Mọi route handler bọc bằng `withApi()` (`src/server/api/withApi.ts`):
-handler chỉ trả data; `AppError` → JSON `{ error }` kèm đúng mã HTTP; lỗi lạ
-→ log server, trả `500 { "error": "Lỗi hệ thống" }`.
+handler chỉ trả data; `AppError` → JSON `{ error, code }` kèm đúng mã HTTP.
+Lỗi lạ → log marker server không chứa exception/input thô, trả HTTP 500 với
+ERR-SYS-001 và thông điệp chuẩn. Không tự ánh xạ mọi lỗi Prisma thành conflict;
+service phải xác định ngữ cảnh và retry toàn transaction khi phù hợp.
 
 ## 2. Bảng mã lỗi
 
-| HTTP | Khi nào | Ví dụ thông điệp |
+| HTTP | Khi nào | Ví dụ mã lỗi |
 | --- | --- | --- |
-| `400` | Input sai thiếu/sai kiểu | `"Ngày trả phải sau ngày nhận"` |
-| `401` | Chưa đăng nhập / cookie hỏng | `"Chưa đăng nhập"` |
-| `403` | Đúng người, sai vai trò hoặc không sở hữu | `"Không đủ quyền"` |
-| `404` | Không tồn tại hoặc đã archived | `"Không tìm thấy thiết bị"` |
-| `409` | Vi phạm trạng thái / trùng dữ liệu | `"Khung ngày đã có người đặt"` |
-| `500` | Lỗi chưa phân loại | `"Lỗi hệ thống"` |
+| `400` | Input sai thiếu/sai kiểu, khoảng ngày không hợp lệ | ERR-USR-003; ERR-USR-010 khi input login sai cấu trúc |
+| `401` | Phiên thiếu/hỏng/hết hạn; thông tin đăng nhập sai | ERR-SYS-003; ERR-USR-010 sau kiểm tra thông tin xác thực |
+| `403` | Sai vai trò/không sở hữu; tài khoản bị khóa | ERR-USR-008; ERR-USR-011 |
+| `404` | Thiết bị không khả dụng | ERR-USR-004 |
+| `409` | Vi phạm trạng thái / trùng dữ liệu / tương tranh | ERR-USR-001; ERR-SYS-002 |
+| `500` | Lỗi chưa phân loại | ERR-SYS-001 |
+
+Chi tiết catalog B4, schema dùng chung và các quyết định chờ review:
+[error-contract.md](./error-contract.md).
 
 ## 3. Xác thực (S1)
 
@@ -32,12 +40,12 @@ POST /api/auth/register { email, password, fullName, role: BUYER|SELLER }
   → validate zod → check email unique (409 nếu trùng)
   → bcrypt.hashSync(password, 10) → INSERT users → set cookie JWT (httpOnly)
 POST /api/auth/login { email, password }
-  → SELECT user → bcrypt.compare → sai → 401 "Email hoặc mật khẩu không đúng"
+  → SELECT user → bcrypt.compare → sai → 401 ERR-USR-010 "Thông tin đăng nhập không đúng."
   → đúng → set cookie (payload: { sub, role }, exp 7 ngày)
 ```
 
 Cookie: `httpOnly; SameSite=Lax; Secure (production)`. Không localStorage.
-Lý do không dùng header demo như template: [ADR-002](./adr/002-demo-auth.md).
+Lý do không dùng header demo như template: [ADR-002](./adr/002-auth.md).
 
 ## 4. Đặt lịch (S2) — luồng nhiều bước nhất
 

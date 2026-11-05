@@ -1,20 +1,21 @@
-// Mirror của src/errors.js ở template: mọi lỗi nghiệp vụ đi qua AppError,
-// route handler bắt và chuyển thành JSON { error } với mã HTTP tương ứng.
+import { errorCatalog, errorMessage, type ActiveErrorCode } from "../lib/error-catalog";
+
+// Thông điệp và HTTP status lấy từ cùng catalog, không nhận chuỗi lỗi tùy ý.
 export class AppError extends Error {
+  public readonly status: number;
+
   constructor(
-    public readonly status: number,
-    message: string,
+    public readonly code: ActiveErrorCode,
+    fields?: readonly string[],
+    // Cùng mã login: input sai cấu trúc là 400, xác thực sai là 401.
+    validationStatus?: 400,
   ) {
-    super(message);
+    super(errorMessage(code, fields));
+    this.status = validationStatus ?? errorCatalog[code].status;
     this.name = "AppError";
   }
 }
 
-export const badRequest = (message: string) => new AppError(400, message);
-export const unauthorized = (message = "Chưa đăng nhập") =>
-  new AppError(401, message);
-export const forbidden = (message = "Không đủ quyền") =>
-  new AppError(403, message);
-export const notFound = (message = "Không tìm thấy") =>
-  new AppError(404, message);
-export const conflict = (message: string) => new AppError(409, message);
+// Giữ các guard đang dùng requireRole; không thay đổi điều kiện phân quyền.
+export const unauthorized = () => new AppError("ERR-SYS-003");
+export const forbidden = () => new AppError("ERR-USR-008");

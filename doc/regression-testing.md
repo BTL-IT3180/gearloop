@@ -6,6 +6,20 @@ PostgreSQL thật — **không mock** (mock chỉ che giấu lỗi tích hợp).
 
 ## 1. Phạm vi hiện tại (S1)
 
+`tests/api-contract.test.ts` — Task 5 (#64), không cần DB:
+
+- Catalog B4 và guard không phát mã pending; template 005 cần nhãn trường.
+- Schema login và ngày UTC: sai kiểu/thiếu trường, ngày không tồn tại, năm nhuận,
+  khoảng đảo ngược, thuê cùng ngày; email trim, password/input gốc không đổi.
+- Gọi withApi bằng Request/Response thật, không mock: success envelope,
+  AppError/status/code, JSON/input sai bị từ chối trước thao tác tiếp theo,
+  fallback 500 không trả thông tin nội bộ; ZodError nội bộ vẫn trả 500.
+- Guard cho phép đúng role, từ chối thiếu phiên/sai role. Đây là kiểm thử
+  handler boundary, chưa phải E2E qua HTTP server hay tính năng auth đầy đủ.
+
+Chạy riêng: `npm test -- tests/api-contract.test.ts`. Bộ test DB hiện có vẫn
+chạy regression theo hướng dẫn bên dưới; không thay DB bằng mock.
+
 `tests/smoke.test.ts` — nền móng:
 
 - Seed tạo đúng số lượng users/categories/items + bcrypt hash (không plaintext).

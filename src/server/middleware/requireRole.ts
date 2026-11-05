@@ -1,5 +1,5 @@
 import type { Role } from "@prisma/client";
-import { forbidden, unauthorized } from "@/server/errors";
+import { forbidden, unauthorized } from "../errors";
 
 // Mirror của src/middleware/requireRole.js ở template.
 // Next.js không có middleware chain kiểu Express nên hàm này được gọi
