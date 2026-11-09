@@ -16,6 +16,8 @@ next-env.d.ts
 .DS_Store
 coverage/
 *.log
+playwright-report/
+test-results/
 
 # prisma
 prisma/migrations/dev.db*

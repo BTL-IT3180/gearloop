@@ -139,6 +139,7 @@ bộ query. Hợp đồng từng tầng: [doc/adr/006-layered-architecture.md](.
 │   └── db/seed.ts             seed demo (idempotent)
 ├── prisma/schema.prisma       NGUỒN SỰ THẬT schema (16 models)
 ├── tests/                     vitest — cần database đang chạy
+├── e2e/                       playwright — smoke test trình duyệt
 ├── doc/                       tài liệu kỹ thuật + adr/
 ├── AGENTS.md                  luật cho AI agent + người code
 ├── Dockerfile · docker-compose.yml
@@ -232,11 +233,14 @@ Biến môi trường (xem `.env.example`):
 npm run lint         # ESLint
 npm run typecheck    # tsc --noEmit
 npm test             # vitest — CẦN database đang chạy và đã seed
+npm run test:e2e     # playwright Chromium — tự khởi động Next.js
 npm run db:reset     # xoá sạch + migrate + seed lại
 ```
 
-Test truy vấn PostgreSQL thật — không mock. Chi tiết phạm vi:
-[doc/regression-testing.md](./doc/regression-testing.md).
+Các test tích hợp trong `npm test` truy vấn PostgreSQL thật — không mock.
+Chi tiết phạm vi:
+[doc/regression-testing.md](./doc/regression-testing.md). E2E cần cài browser
+Chromium một lần bằng `npx playwright install chromium`.
 
 ---
 
