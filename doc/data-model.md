@@ -1,10 +1,16 @@
 # GearLoop — Mô hình dữ liệu
 
-Tài liệu mô tả **toàn bộ cấu trúc database**: có những bảng nào, mỗi cột nghĩa
-là gì, các bảng nối với nhau ra sao, và dữ liệu chuyển trạng thái như thế nào.
+Tài liệu mô tả 16 bảng, các cột nghiệp vụ chính, quan hệ giữa các bảng và
+vòng đời dữ liệu. Danh sách field đầy đủ nằm trong schema Prisma.
 
 Nguồn sự thật là `prisma/schema.prisma`. Nếu schema thay đổi, tài liệu này
 phải cập nhật theo (quy tắc trong `AGENTS.md`).
+
+Schema hiện không dùng `@@map`/`@map`: tên bảng PostgreSQL giữ nguyên tên model
+(ví dụ `User`, `CalendarDay`), tên cột giữ nguyên tên field (`bookingId`).
+Khi viết SQL phải đặt tên có chữ hoa trong dấu nháy kép, ví dụ
+`SELECT "bookingId" FROM "CalendarDay"`. Các khối `UNIQUE (...)` dưới đây
+là trích đoạn ràng buộc, không phải câu lệnh SQL độc lập.
 
 Xem thêm: [prod.md](./prod.md) · [backend-flows.md](./backend-flows.md) · [adr/](./adr/)
 
@@ -16,10 +22,10 @@ GearLoop có **16 bảng**, chia 4 nhóm:
 
 | Nhóm | Bảng | Bản chất |
 | --- | --- | --- |
-| **Con người** | `users` | Ai đăng nhập, vai trò nào |
-| **Danh mục** (ít đổi) | `categories`, `checklist_template_items`, `policy_settings` | Cấu hình vận hành, Admin khai một lần |
-| **Tài sản** (nền kinh tế của app) | `items`, `item_photos`, `rate_tiers`, `deposit_policies`, `calendar_days` | Thiết bị, giá theo ngày, % cọc, lịch ngày |
-| **Giao dịch** (đổi liên tục) | `bookings`, `condition_reports`, `condition_report_entries`, `damage_claims`, `deposit_ledgers`, `reviews`, `audit_logs` | Trái tim của app — lượt thuê và vòng đời của nó |
+| **Con người** | `User` | Ai đăng nhập, vai trò nào |
+| **Danh mục** (ít đổi) | `Category`, `ChecklistTemplateItem`, `PolicySetting` | Cấu hình vận hành, Admin khai một lần |
+| **Tài sản** (nền kinh tế của app) | `Item`, `ItemPhoto`, `RateTier`, `DepositPolicy`, `CalendarDay` | Thiết bị, giá theo ngày, % cọc, lịch ngày |
+| **Giao dịch** (đổi liên tục) | `Booking`, `ConditionReport`, `ConditionReportEntry`, `DamageClaim`, `DepositLedger`, `Review`, `AuditLog` | Trái tim của app — lượt thuê và vòng đời của nó |
 
 Hiểu nhanh bằng một câu:
 
@@ -35,101 +41,156 @@ Hiểu nhanh bằng một câu:
 
 ```mermaid
 erDiagram
-    USERS            ||--o{ ITEMS : "sở hữu"
-    CATEGORIES       ||--o{ ITEMS : "phân loại"
-    CATEGORIES       ||--o{ CHECKLIST_TEMPLATE_ITEMS : "mẫu biên bản"
-    ITEMS            ||--o{ ITEM_PHOTOS : ""
-    ITEMS            ||--o{ RATE_TIERS : "giá theo số ngày"
-    ITEMS            ||--o| DEPOSIT_POLICIES : "% cọc"
-    ITEMS            ||--o{ CALENDAR_DAYS : "1 dòng / ngày"
-    USERS            ||--o{ BOOKINGS : "thuê"
-    ITEMS            ||--o{ BOOKINGS : "được thuê"
-    BOOKINGS         ||--o{ CONDITION_REPORTS : "PICKUP | RETURN"
-    CHECKLIST_TEMPLATE_ITEMS ||--o{ CONDITION_REPORT_ENTRIES : ""
-    CONDITION_REPORTS ||--o{ CONDITION_REPORT_ENTRIES : ""
-    BOOKINGS         ||--o{ DAMAGE_CLAIMS : ""
-    BOOKINGS         ||--o{ DEPOSIT_LEDGERS : "append-only"
-    BOOKINGS         ||--o| REVIEWS : "1 review / booking"
-    USERS            ||--o{ AUDIT_LOGS : "actor"
+    User            ||--o{ Item : "sở hữu"
+    Category       ||--o{ Item : "phân loại"
+    Category       ||--o{ ChecklistTemplateItem : "mẫu biên bản"
+    Item            ||--o{ ItemPhoto : "ảnh thiết bị"
+    Item            ||--o{ RateTier : "giá theo số ngày"
+    Item            ||--o| DepositPolicy : "% cọc"
+    Item            ||--o{ CalendarDay : "1 dòng / ngày"
+    User            ||--o{ Booking : "thuê"
+    Item            ||--o{ Booking : "được thuê"
+    Booking         ||--o{ ConditionReport : "PICKUP | RETURN"
+    ChecklistTemplateItem ||--o{ ConditionReportEntry : "mục kiểm tra"
+    ConditionReport ||--o{ ConditionReportEntry : "chi tiết biên bản"
+    Booking         ||--o{ DamageClaim : "khiếu nại"
+    Booking         ||--o{ DepositLedger : "append-only"
+    Booking         ||--o| Review : "1 review / booking"
+    Booking         |o--o{ CalendarDay : "ngày được đặt"
+    User            ||--o{ ConditionReport : "người lập biên bản"
+    User            ||--o{ DamageClaim : "người mở claim"
+    User            |o--o{ DamageClaim : "người xử lý, có thể NULL"
+    User            |o--o{ DepositLedger : "người ghi, có thể NULL"
+    User            ||--o{ Review : "tác giả"
+    User            |o--o{ AuditLog : "actor, có thể NULL"
 
-    USERS {
+    User {
         serial  id PK
-        varchar email UK
-        varchar password_hash "bcrypt"
-        varchar role "ADMIN | SELLER | BUYER"
-        boolean is_active
+        text email UK
+        text passwordHash "bcrypt"
+        Role role "ADMIN | SELLER | BUYER"
+        boolean isActive
     }
-    CATEGORIES {
+    Category {
         serial  id PK
-        varchar name UK
+        text name UK
     }
-    CHECKLIST_TEMPLATE_ITEMS {
+    ChecklistTemplateItem {
         serial  id PK
-        int     category_id FK
-        varchar label
+        int     categoryId FK
+        text label
         boolean required
     }
-    ITEMS {
+    Item {
         serial  id PK
-        int     owner_id FK
-        int     category_id FK
-        varchar title
-        int     replacement_value_vnd
-        varchar status "ACTIVE | ARCHIVED | SUSPENDED"
+        int     ownerId FK
+        int     categoryId FK
+        text title
+        int     replacementValueVnd
+        ItemStatus status "ACTIVE | ARCHIVED | SUSPENDED"
     }
-    RATE_TIERS {
+    RateTier {
         serial id PK
-        int    item_id FK
-        int    min_days
-        int    max_days "NULL = trần mở"
-        int    price_per_day_vnd
+        int    itemId FK
+        int    minDays
+        int    maxDays "NULL = trần mở"
+        int    pricePerDayVnd
     }
-    DEPOSIT_POLICIES {
+    DepositPolicy {
         serial id PK
-        int    item_id FK UK
+        int    itemId FK, UK
         int    percent "% cọc, chặn bởi policy"
     }
-    CALENDAR_DAYS {
+    CalendarDay {
         serial id PK
-        int    item_id FK
+        int    itemId FK
         date   date
-        varchar kind "FREE | BOOKED | BLOCKED"
-        int    booking_id FK "NULL nếu không BOOKED"
+        CalendarDayKind kind "FREE | BOOKED | BLOCKED"
+        int    bookingId FK "NULL nếu không BOOKED"
     }
-    BOOKINGS {
+    Booking {
         serial id PK
-        int    item_id FK
-        int    buyer_id FK
-        date   start_date
-        date   end_date
-        varchar status "9 trạng thái — mục 5"
-        int    total_vnd "snapshot"
-        int    deposit_vnd "snapshot"
+        int    itemId FK
+        int    buyerId FK
+        date   startDate
+        date   endDate
+        BookingStatus status "9 trạng thái — mục 5"
+        int    totalVnd "snapshot"
+        int    depositVnd "snapshot"
+        timestamp returnedAt "NULL trước khi trả; DB ghi một lần, UTC"
     }
-    CONDITION_REPORTS {
+    ConditionReport {
         serial id PK
-        int    booking_id FK
-        varchar phase "PICKUP | RETURN"
-        int    reporter_id FK
+        int    bookingId FK
+        ReportPhase phase "PICKUP | RETURN"
+        int    reporterId FK
     }
-    DAMAGE_CLAIMS {
+    DamageClaim {
         serial id PK
-        int    booking_id FK
-        varchar status "OPEN | UNDER_REVIEW | RESOLVED"
-        int    amount_awarded_vnd "Admin quyết"
+        int    bookingId FK
+        int    openedById FK
+        ClaimStatus status "OPEN | UNDER_REVIEW | RESOLVED"
+        int    amountAwardedVnd "NULL trước khi Admin quyết"
+        int    resolvedById FK "có thể NULL"
     }
-    DEPOSIT_LEDGERS {
+    DepositLedger {
         serial id PK
-        int    booking_id FK
-        varchar type "DEPOSIT_HELD | RELEASE | DEDUCT | VOID"
-        int    amount_vnd
-        varchar event_key "unique cùng booking_id và type"
+        int    bookingId FK
+        LedgerEntryType type "DEPOSIT_HELD | RELEASE | DEDUCT | VOID"
+        int    amountVnd
+        text eventKey "unique cùng bookingId và type"
+        int    createdById FK "NULL = hệ thống"
+    }
+    ItemPhoto {
+        serial id PK
+        int itemId FK
+        text url
+        boolean isBaseline
+    }
+    ConditionReportEntry {
+        serial id PK
+        int reportId FK
+        int checklistItemId FK
+        text labelSnapshot "DB lấy từ mẫu khi INSERT; bất biến"
+        boolean requiredSnapshot "snapshot bắt buộc; bất biến"
+        ReportItemState state "OK | NOT_OK"
+        text note "có thể NULL"
+        text photoUrl "có thể NULL"
+    }
+    Review {
+        serial id PK
+        int bookingId FK, UK
+        int authorId FK
+        int rating
+        text comment "có thể NULL"
+    }
+    PolicySetting {
+        text key PK
+        text value
+        text note "có thể NULL"
+        timestamp updatedAt
+    }
+    AuditLog {
+        serial id PK
+        int actorId FK "NULL = hệ thống"
+        text action
+        text entity
+        text entityId "có thể NULL"
+        jsonb detail "có thể NULL"
+        timestamp createdAt
     }
 ```
 
+ERD hiển thị các cột chính; `PolicySetting` độc lập, không có FK. Các kiểu
+`Role`, `BookingStatus`, `CalendarDayKind`, `ItemStatus`, `ReportPhase`,
+`ReportItemState`, `ClaimStatus`, `LedgerEntryType` là enum PostgreSQL.
+`timestamp` trong sơ đồ là `timestamp(3) without time zone`, quy ước lưu UTC.
+Quan hệ Booking–CalendarDay dùng FK ghép `(bookingId, itemId)`; các unique ghép
+khác xem schema. Ký hiệu `|o` ở phía cha cho phép FK nullable ở bảng con.
+
 ### Hai quan hệ dễ nhầm, giải thích kỹ
 
-**a) `calendar_days` không trỏ thẳng `bookings` bắt buộc.** `booking_id` chỉ
+**a) `CalendarDay` không trỏ thẳng `Booking` bắt buộc.** `bookingId` chỉ
 được set khi `kind = BOOKED`; ngày `BLOCKED` (bảo trì) và `FREE` để NULL.
 Cột này phục vụ truy ngược "ngày này thuộc booking nào" mà không cần khoảng
 ngày logic nào khác.
@@ -145,8 +206,8 @@ bản dòng mới. Nhờ đó transaction REPEATABLE READ có snapshot cũ bị 
 serialization, thay vì bỏ sót ngày vừa được transaction khác thêm. Service cần
 xử lý lỗi tương tranh/retry toàn transaction; không retry riêng một phần giao dịch.
 
-**b) `bookings` lưu snapshot tiền (`total_vnd`, `deposit_vnd`)** thay vì tính
-lại từ `rate_tiers`/`deposit_policies` lúc đọc. Chủ thiết bị có quyền sửa
+**b) `Booking` lưu snapshot tiền (`totalVnd`, `depositVnd`)** thay vì tính
+lại từ `RateTier`/`DepositPolicy` lúc đọc. Chủ thiết bị có quyền sửa
 giá — lượt thuê đã chốt phải giữ nguyên con số thời điểm đặt, nếu không sổ
 cọc sẽ lệch với tiền đã ghi.
 
@@ -160,53 +221,53 @@ gồm cả hai đầu, nên cùng ngày là một ngày thuê hợp lệ ở t�
 
 Ký hiệu: **PK** khóa chính · **FK** khóa ngoại · **UK** unique.
 
-### 3.1. `users`
+### 3.1. `User`
 
 | Cột | Kiểu | NULL? | Mặc định | Khóa | Ý nghĩa |
 | --- | --- | --- | --- | --- | --- |
 | `id` | `serial` | Không | tự tăng | PK | Mã tài khoản |
-| `email` | `varchar` | Không | - | UK | Đăng nhập |
-| `password_hash` | `varchar` | Không | - | | bcrypt — **không bao giờ trả về client** (ADR-002) |
-| `full_name` | `varchar` | Không | - | | Tên hiển thị |
-| `role` | `enum` | Không | `BUYER` | | `ADMIN \| SELLER \| BUYER` — đúng 3 vai trò (ADR-007) |
-| `is_active` | `boolean` | Không | `true` | | Admin khoá → chặn đăng nhập |
+| `email` | `text` | Không | - | UK | Đăng nhập |
+| `passwordHash` | `text` | Không | - | | bcrypt — **không bao giờ trả về client** (ADR-002) |
+| `fullName` | `text` | Không | - | | Tên hiển thị |
+| `role` | `Role` | Không | `BUYER` | | `ADMIN \| SELLER \| BUYER` — đúng 3 vai trò (ADR-007) |
+| `isActive` | `boolean` | Không | `true` | | Admin khoá → chặn đăng nhập |
 
-### 3.2. `items`
+### 3.2. `Item`
 
 | Cột | Kiểu | NULL? | Mặc định | Khóa | Ý nghĩa |
 | --- | --- | --- | --- | --- | --- |
-| `owner_id` | `int` | Không | - | FK → users | Chủ thiết bị |
-| `category_id` | `int` | Không | - | FK → categories | Quyết định checklist biên bản |
-| `title`, `description` | `varchar/text` | Không/Có | - | | Nội dung tin đăng |
-| `replacement_value_vnd` | `int` | Không | - | | Giá trị thay thế — nền tính cọc |
-| `status` | `enum` | Không | `ACTIVE` | | `ARCHIVED` ẩn khỏi tìm kiếm; `SUSPENDED` do Admin |
+| `ownerId` | `int` | Không | - | FK → User | Chủ thiết bị |
+| `categoryId` | `int` | Không | - | FK → Category | Quyết định checklist biên bản |
+| `title`, `description` | `text` | Không/Có | - | | Nội dung tin đăng |
+| `replacementValueVnd` | `int` | Không | - | | Giá trị thay thế — nền tính cọc |
+| `status` | `ItemStatus` | Không | `ACTIVE` | | `ARCHIVED` ẩn khỏi tìm kiếm; `SUSPENDED` do Admin |
 
-### 3.3. `rate_tiers` + `deposit_policies`
+### 3.3. `RateTier` + `DepositPolicy`
 
 | Cột | Ý nghĩa |
 | --- | --- |
-| `min_days` / `max_days` | Khoảng ngày áp giá. `max_days NULL` = trần mở. `UNIQUE(item_id, min_days)` |
-| `price_per_day_vnd` | Giá/ngày trong khoảng |
-| `percent` | % cọc trên `replacement_value_vnd`, chặn trên bởi `policy_settings.deposit_cap_percent` |
+| `minDays` / `maxDays` | Khoảng ngày áp giá. `maxDays NULL` = trần mở. `@@unique([itemId, minDays])` |
+| `pricePerDayVnd` | Giá/ngày trong khoảng |
+| `percent` | % cọc trên `replacementValueVnd`; giới hạn nghiệp vụ lấy từ `PolicySetting` có `key = 'deposit_cap_percent'`, không phải cột cùng tên |
 
 RateTier có CHECK minDays >= 1, maxDays NULL hoặc >= minDays, giá không âm.
 Trigger serialize INSERT/UPDATE theo dòng Item và từ chối các khoảng giao nhau,
 kể cả hai writer đồng thời và maxDays NULL. Khoảng 1–2 và 3–6 hợp lệ; 1–3 và
 3–6 giao nhau tại ngày 3, không hợp lệ. Không tự bắt buộc phủ kín mọi số ngày.
 
-### 3.4. `calendar_days` — bảng quan trọng thứ hai
+### 3.4. `CalendarDay` — bảng quan trọng thứ hai
 
 | Cột | Kiểu | NULL? | Mặc định | Khóa | Ý nghĩa |
 | --- | --- | --- | --- | --- | --- |
-| `item_id` | `int` | Không | - | FK → items | Của thiết bị nào |
+| `itemId` | `int` | Không | - | FK → Item | Của thiết bị nào |
 | `date` | `date` | Không | - | | Một ngày lịch (UTC) |
-| `kind` | `enum` | Không | `FREE` | | `FREE` trống · `BOOKED` đang thuê · `BLOCKED` chủ chặn |
-| `booking_id` | `int` | Có | `NULL` | FK → bookings | Chỉ set khi `kind = BOOKED` |
+| `kind` | `CalendarDayKind` | Không | `FREE` | | `FREE` trống · `BOOKED` đang thuê · `BLOCKED` chủ chặn |
+| `bookingId` | `int` | Có | `NULL` | FK ghép `(bookingId, itemId)` → `Booking(id, itemId)` | Chỉ set khi `kind = BOOKED` |
 
 **Ràng buộc:**
 
 ```sql
-UNIQUE (item_id, date)
+UNIQUE ("itemId", "date")
 ```
 
 ---
@@ -214,7 +275,7 @@ UNIQUE (item_id, date)
 ## 4. Ràng buộc quan trọng nhất: chống đặt chồng
 
 ```sql
-UNIQUE (item_id, date)   -- Prisma: @@unique([itemId, date])
+UNIQUE ("itemId", "date")   -- Prisma: @@unique([itemId, date])
 ```
 
 > "Một thiết bị, một ngày lịch, **chỉ tồn tại đúng một dòng**."
@@ -224,18 +285,23 @@ UNIQUE (item_id, date)   -- Prisma: @@unique([itemId, date])
 Template MedBook dùng **partial unique index** (`WHERE status IN (...)`) vì
 bảng của họ chỉ tạo dòng `appointments` khi có người đặt, và lịch đã hủy vẫn
 nằm lại. GearLoop ngược lại: **dòng lịch luôn tồn tại cho mọi ngày** (60 ngày
-tới), đặt/hủy chỉ **đổi `kind`**:
+tới theo dữ liệu seed), đặt/hủy cập nhật **cả `kind` và `bookingId`**:
 
-| Kịch bản | Với `UNIQUE(item_id, date)` |
+| Kịch bản | Với `@@unique([itemId, date])` |
 | --- | --- |
-| An đặt ngày 14/11 → hủy | Dòng 14/11 đổi `BOOKED → FREE`. Linh đặt lại bình thường |
+| An đặt ngày 14/11 → hủy | Cùng dòng đổi `kind = FREE`, `bookingId = NULL`. Linh đặt lại bình thường |
 | Hai buyer đặt cùng ngày | UPDATE có điều kiện FREE trong transaction; kiểm tra đủ số dòng, bên thua rollback |
 | Script chèn thẳng dòng lịch trùng | Unique từ chối INSERT trùng; UPDATE cùng dòng cần điều kiện riêng |
+
+Khi chiếm lịch, đặt `kind = BOOKED` cùng `bookingId` của booking. Khi giải phóng,
+đặt `kind = FREE` cùng `bookingId = NULL` trong một UPDATE. Chỉ đổi `kind`
+sẽ vi phạm CHECK nếu `bookingId` không khớp; chỉ giải phóng các ngày thuộc
+booking đang xử lý, trong cùng transaction với trạng thái booking và sổ cọc.
 
 Nguyên tắc mirror từ [ADR-004 của template](https://github.com/NgDucLoc/MedBook-Case-Study-Base/blob/main/doc/adr/004-transaction-lock-booking.md):
 *quy tắc nghiệp vụ sống còn thì đặt ở cả code lẫn database.* Trong
 luồng booking cần kiểm tra số ngày chiếm được để trả lỗi 409 thân thiện.
-`UNIQUE(item_id, date)` chỉ bảo vệ tính duy nhất của dòng lịch, không tự khóa
+`@@unique([itemId, date])` chỉ bảo vệ tính duy nhất của dòng lịch, không tự khóa
 truy vấn đọc hay ngăn ghi đè bookingId. Booking service hiện chưa được triển khai.
 
 Đặt booking là **một transaction**: tạo `Booking(REQUESTED)` → chiếm đủ ngày
@@ -251,18 +317,18 @@ toàn bộ. Seller duyệt sau đó: `DEPOSIT_HELD → APPROVED`, không giữ c
 không nhận timestamp do client cung cấp, không đổi khi sửa updatedAt hay xử lý
 claim. Hạn nhả cọc tính từ returnedAt cộng claim_window_hours.
 
-### 5.1. Vòng đời `bookings`
+### 5.1. Vòng đời `Booking`
 
 ```mermaid
 stateDiagram-v2
     [*] --> REQUESTED : Buyer đặt lịch<br/>POST /api/bookings
     REQUESTED --> DEPOSIT_HELD : hoàn tất giữ cọc trong transaction tạo booking
     DEPOSIT_HELD --> APPROVED : Seller duyệt
-    DEPOSIT_HELD --> CLOSED : Seller từ chối<br/>(ledger VOID, lịch trả FREE)
+    DEPOSIT_HELD --> CLOSED : Seller từ chối<br/>(VOID nếu còn dư; FREE và bookingId NULL)
     APPROVED --> PICKED_UP : giao máy<br/>+ biên bản PICKUP
     PICKED_UP --> RETURN_PENDING : buyer trả
     RETURN_PENDING --> RETURNED : Seller ghi biên bản RETURN
-    RETURNED --> CLOSED : hết 48h không claim<br/>→ ledger RELEASE tự động
+    RETURNED --> CLOSED : hết claim_window_hours không claim<br/>→ ledger RELEASE tự động
     RETURNED --> DISPUTED : có biên bản NOT_OK → claim
     DISPUTED --> RESOLVED : Admin xét<br/>→ ledger DEDUCT hoặc RELEASE
     CLOSED --> [*]
@@ -275,11 +341,11 @@ stateDiagram-v2
 | (mới) | `REQUESTED` | Buyer | Ngày không FREE → `409` |
 | `REQUESTED` | `DEPOSIT_HELD` | Hệ thống, trong transaction tạo booking | Đã chiếm đủ lịch và ghi cọc; cọc 0 không ghi ledger |
 | `DEPOSIT_HELD` | `APPROVED` | Seller (chủ item) | Buyer tự duyệt → `403`; không ghi cọc lần hai |
-| `DEPOSIT_HELD` | `CLOSED` | Seller | Lịch trả `FREE`, ledger `VOID` bằng số dư còn giữ |
+| `DEPOSIT_HELD` | `CLOSED` | Seller | Lịch `kind = FREE`, `bookingId = NULL`; ghi `VOID` khi số dư còn giữ > 0 |
 | `APPROVED` | `PICKED_UP` | Seller | Phải có biên bản `PICKUP` đầy đủ mục required |
 | `RETURNED` | `CLOSED` | **Hệ thống** (timer) | Không claim trong `claim_window_hours` → `RELEASE` |
 | `RETURNED` | `DISPUTED` | Seller hoặc Buyer | Claim mới chỉ khi biên bản RETURN có `NOT_OK` |
-| `DISPUTED` | `RESOLVED` | Admin | Award ≤ `deposit_vnd`; ghi `DEDUCT` + phần nhả lại |
+| `DISPUTED` | `RESOLVED` | Admin | Award ≤ `depositVnd`; ghi `DEDUCT` + phần nhả lại |
 | `CLOSED` | bất kỳ | **Không ai** | Trạng thái chết |
 
 Ba điều cần nhớ:
@@ -290,7 +356,7 @@ Ba điều cần nhớ:
    — không trả dòng nào nghĩa là state sai → ném `409`. Không có khe hở thời gian.
 3. Timer nhả cọc và auto-suspension là **so sánh timestamp thuần** — không ML (giới hạn môn học).
 
-### 5.3. Vòng đời `damage_claims`
+### 5.3. Vòng đời `DamageClaim`
 
 ```mermaid
 stateDiagram-v2
@@ -325,8 +391,8 @@ stateDiagram-v2
 - Enum bút toán `HOLD` trong kế hoạch Excel được thống nhất thành `DEPOSIT_HELD`;
   trạng thái Booking cùng tên thể hiện bước giữ cọc đã hoàn tất.
 
-- `item_photos.url` là URL ngoài — **không có xác minh ảnh tự động** (cấm AI/CV);
+- `ItemPhoto.url` là URL ngoài — **không có xác minh ảnh tự động** (cấm AI/CV);
   độ tin cậy dựa vào slot ảnh bắt buộc theo checklist + Admin xét khiếu nại.
-- Tiền cọc là **sổ ghi nội bộ** (`deposit_ledgers`) — chưa nối cổng thanh toán.
+- Tiền cọc là **sổ ghi nội bộ** (`DepositLedger`) — chưa nối cổng thanh toán.
 - Toàn bộ thời gian xử lý theo **UTC**; UI hiển thị giờ Việt Nam (+07).
-- `audit_logs` chiếm chỗ theo thời gian — chưa có archival (ngoài phạm vi môn học).
+- `AuditLog` chiếm chỗ theo thời gian — chưa có archival (ngoài phạm vi môn học).
