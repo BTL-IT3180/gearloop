@@ -27,6 +27,7 @@ Branch `main` phải được bảo vệ với các điều kiện:
 - Bắt buộc tạo PR để merge.
 - Có ít nhất 1 approval từ thành viên khác; không tự review hoặc tự phê duyệt PR của mình.
 - CI phải xanh, với status check bắt buộc là `verify` nếu workflow hiện tại cung cấp đúng context này.
+- `verify` chỉ xanh khi cả hai job `unit` và `e2e` hoàn tất thành công.
 - Chỉ merge khi đã đáp ứng các điều kiện bảo vệ nhánh được cấu hình trong GitHub.
 
 Tài liệu này mô tả chính sách mong muốn. Quản trị viên cần xác minh các điều kiện trên đã được bật trong GitHub Branch Protection hoặc Rulesets.
@@ -52,17 +53,13 @@ Workflow CI được quản lý tại `.github/workflows/ci.yml`.
 
 Các bước dự kiến trong pipeline:
 
-| Bước | Lệnh hoặc thao tác | Chặn merge |
+| Job | Lệnh hoặc thao tác | Chặn merge |
 |---|---|---|
-| Cài dependency | `npm ci` | Có |
-| Sinh Prisma Client | `npx prisma generate` | Có |
-| Lint | `npm run lint` | Có |
-| Đồng bộ schema và seed | `prisma migrate deploy` và `npm run db:seed` trên PostgreSQL service | Có |
-| Build | `npm run build` | Có |
-| Typecheck | `npm run typecheck` | Có |
-| Test | `npm test` bằng Vitest với database thật, không mock database | Có |
+| `unit` | Cài dependency, sinh Prisma Client, lint, migrate + seed PostgreSQL, build, typecheck và `npm test` bằng Vitest | Có |
+| `e2e` | Cài dependency, cài Chromium bằng `npx playwright install --with-deps chromium`, chạy `npm run test:e2e` | Có |
+| `verify` | Chỉ thành công khi cả `unit` và `e2e` thành công; dùng làm status check bắt buộc trên PR | Có |
 
-Các lệnh và điều kiện trên phải khớp với workflow thực tế. Nếu CI hiện tại có thứ tự hoặc cách cấu hình khác, hãy kiểm tra `.github/workflows/ci.yml` trước khi thay đổi pipeline.
+Các lệnh và điều kiện trên phải khớp với workflow thực tế. Unit và E2E chạy độc lập trên mỗi PR; `verify` tổng hợp kết quả để giữ một status check ổn định.
 
 ### 2.1. Quy tắc đồng bộ database
 

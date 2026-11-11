@@ -52,6 +52,13 @@ trong lỗi connector; unique/serialization từ model API assert P2002/P2034.
 audit-only, booking có ngày BOOKED nhưng chưa có ledger, ledger đã ghi, và nạp
 mẫu lỗi giữa chừng. Kiểm tra exit code và dữ liệu trước/sau, không mock DB.
 
+`e2e/smoke.spec.ts` — smoke test trình duyệt với Playwright Chromium:
+
+- Mở trang chủ trên Next.js server do Playwright tự khởi động.
+- Xác nhận heading trang chủ hiển thị; không cần database.
+- Chạy local bằng `npx playwright install chromium` (một lần), sau đó
+  `npm run test:e2e`.
+
 ## 2. Kế hoạch mở rộng theo sprint
 
 | Sprint | Thêm test |
