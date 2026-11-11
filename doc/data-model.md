@@ -3,7 +3,9 @@
 Tài liệu mô tả 16 bảng, các cột nghiệp vụ chính, quan hệ giữa các bảng và
 vòng đời dữ liệu. Danh sách field đầy đủ nằm trong schema Prisma.
 
-Nguồn sự thật là `prisma/schema.prisma`. Nếu schema thay đổi, tài liệu này
+`prisma/schema.prisma` là nguồn đối chiếu cấu trúc model, field, enum và quan hệ.
+Các migration trong `prisma/migrations/` bổ sung CHECK, trigger và partial unique
+index không biểu diễn đầy đủ bằng Prisma. Khi các nguồn này thay đổi, tài liệu
 phải cập nhật theo (quy tắc trong `AGENTS.md`).
 
 Schema hiện không dùng `@@map`/`@map`: tên bảng PostgreSQL giữ nguyên tên model
@@ -130,6 +132,7 @@ erDiagram
         int    bookingId FK
         int    openedById FK
         ClaimStatus status "OPEN | UNDER_REVIEW | RESOLVED"
+        int    amountRequestedVnd "số tiền yêu cầu bồi thường"
         int    amountAwardedVnd "NULL trước khi Admin quyết"
         int    resolvedById FK "có thể NULL"
     }
@@ -138,7 +141,7 @@ erDiagram
         int    bookingId FK
         LedgerEntryType type "DEPOSIT_HELD | RELEASE | DEDUCT | VOID"
         int    amountVnd
-        text eventKey "unique cùng bookingId và type"
+        text eventKey "khóa sự kiện ổn định; unique (bookingId, eventKey, type)"
         int    createdById FK "NULL = hệ thống"
     }
     ItemPhoto {
@@ -289,7 +292,7 @@ tới theo dữ liệu seed), đặt/hủy cập nhật **cả `kind` và `booki
 
 | Kịch bản | Với `@@unique([itemId, date])` |
 | --- | --- |
-| An đặt ngày 14/11 → hủy | Cùng dòng đổi `kind = FREE`, `bookingId = NULL`. Linh đặt lại bình thường |
+| An đặt ngày 14/11 → Seller từ chối | Cùng dòng đổi `kind = FREE`, `bookingId = NULL`. Linh đặt lại bình thường |
 | Hai buyer đặt cùng ngày | UPDATE có điều kiện FREE trong transaction; kiểm tra đủ số dòng, bên thua rollback |
 | Script chèn thẳng dòng lịch trùng | Unique từ chối INSERT trùng; UPDATE cùng dòng cần điều kiện riêng |
 
@@ -315,7 +318,12 @@ toàn bộ. Seller duyệt sau đó: `DEPOSIT_HELD → APPROVED`, không giữ c
 
 `Booking.returnedAt` là timestamp UTC do trigger ghi một lần khi chuyển RETURNED;
 không nhận timestamp do client cung cấp, không đổi khi sửa updatedAt hay xử lý
-claim. Hạn nhả cọc tính từ returnedAt cộng claim_window_hours.
+claim. Hạn nhả cọc tính từ returnedAt cộng số giờ trong `PolicySetting` có
+`key = 'claim_window_hours'` (seed mặc định 48 giờ), không phải cột của Booking.
+
+Các sơ đồ và bảng dưới đây mô tả luồng nghiệp vụ dự kiến trong `prod.md` và
+`backend-flows.md`, chưa phải state machine đã được service hoặc DB thực thi
+đầy đủ. Phạm vi bảo vệ hiện tại được phân biệt ở mục 6.
 
 ### 5.1. Vòng đời `Booking`
 
@@ -324,7 +332,7 @@ stateDiagram-v2
     [*] --> REQUESTED : Buyer đặt lịch<br/>POST /api/bookings
     REQUESTED --> DEPOSIT_HELD : hoàn tất giữ cọc trong transaction tạo booking
     DEPOSIT_HELD --> APPROVED : Seller duyệt
-    DEPOSIT_HELD --> CLOSED : Seller từ chối<br/>(VOID nếu còn dư; FREE và bookingId NULL)
+    DEPOSIT_HELD --> CLOSED : Seller từ chối<br/>(VOID nếu còn dư, FREE và bookingId NULL)
     APPROVED --> PICKED_UP : giao máy<br/>+ biên bản PICKUP
     PICKED_UP --> RETURN_PENDING : buyer trả
     RETURN_PENDING --> RETURNED : Seller ghi biên bản RETURN
@@ -332,7 +340,14 @@ stateDiagram-v2
     RETURNED --> DISPUTED : có biên bản NOT_OK → claim
     DISPUTED --> RESOLVED : Admin xét<br/>→ ledger DEDUCT hoặc RELEASE
     CLOSED --> [*]
+    RESOLVED --> [*]
 ```
+
+`CLOSED` kết thúc luồng từ chối hoặc trả máy không có claim; `RESOLVED` kết thúc
+luồng phân xử claim theo `backend-flows.md` mục 6. Không có bước
+`RESOLVED → CLOSED` trong luồng hiện tại. Sơ đồ chưa liệt kê đầy đủ luồng hủy
+trước PICKED_UP nêu trong `prod.md`; quyền hủy và từng chuyển trạng thái cụ thể
+cần được xác định trong task triển khai luồng hủy.
 
 ### 5.2. Bảng chuyển trạng thái (trích)
 
@@ -347,10 +362,13 @@ stateDiagram-v2
 | `RETURNED` | `DISPUTED` | Seller hoặc Buyer | Claim mới chỉ khi biên bản RETURN có `NOT_OK` |
 | `DISPUTED` | `RESOLVED` | Admin | Award ≤ `depositVnd`; ghi `DEDUCT` + phần nhả lại |
 | `CLOSED` | bất kỳ | **Không ai** | Trạng thái chết |
+| `RESOLVED` | bất kỳ | **Không ai trong luồng hiện tại** | Kết thúc phân xử claim |
 
 Ba điều cần nhớ:
 
-1. `CLOSED` là **trạng thái chết** — thuê lại phải tạo booking mới.
+1. `CLOSED` và `RESOLVED` là các trạng thái kết thúc của hai nhánh trong luồng
+   đang mô tả — thuê lại phải tạo booking mới. Enum ở DB không tự chặn việc
+   chuyển trạng thái ra khỏi các trạng thái này.
 2. Chuyển trạng thái là **UPDATE có điều kiện**:
    `UPDATE "Booking" SET status='APPROVED' WHERE id=$1 AND status='DEPOSIT_HELD' RETURNING id`
    — không trả dòng nào nghĩa là state sai → ném `409`. Không có khe hở thời gian.
@@ -367,7 +385,9 @@ stateDiagram-v2
 
 ---
 
-## 6. Hạn chế đã biết
+## 6. Phạm vi bảo vệ và hạn chế đã biết
+
+### 6.1. Quy tắc DB đã bảo vệ
 
 - ConditionReportEntry lưu labelSnapshot và requiredSnapshot, được trigger lấy
   từ template đúng category khi INSERT; caller không thể giả snapshot. Sửa mẫu
@@ -385,9 +405,29 @@ stateDiagram-v2
   kiểm tra dữ liệu, không tự lấy updatedAt làm thời điểm trả.
 
 - Ledger: `amountVnd > 0`, `eventKey` không rỗng, unique theo
-  `(bookingId, eventKey, type)`; chỉ một DEPOSIT_HELD mỗi booking.
+  `(bookingId, eventKey, type)`; chỉ một DEPOSIT_HELD mỗi booking và số tiền
+  phải bằng đúng `Booking.depositVnd`. VOID phải bằng đúng số dư còn giữ;
+  số dư 0 không ghi VOID hoặc bút toán số tiền 0.
   Số dư = DEPOSIT_HELD − RELEASE − DEDUCT − VOID. Trigger serialize ghi cọc,
-  chặn chi vượt số dư, sửa/xóa bút toán và sửa snapshot cọc đã ghi. Xem ADR-004.
+  chặn chi vượt số dư và sửa/xóa bút toán. Trigger Booking chặn mọi thay đổi
+  `totalVnd` và `depositVnd` từ lúc tạo booking, kể cả chưa có ledger. Xem ADR-004.
+  `eventKey` là khóa sự kiện ổn định do server tạo, giữ nguyên khi retry; cùng
+  sự kiện phân xử có thể ghi DEDUCT và RELEASE với cùng eventKey, khác type.
+
+### 6.2. Quy tắc cần kiểm tra ở service khi triển khai
+
+| Quy tắc nghiệp vụ | DB hiện tại | Trách nhiệm service |
+| --- | --- | --- |
+| `DamageClaim.amountAwardedVnd <= Booking.depositVnd` | Chưa có CHECK/trigger kiểm tra trực tiếp field award; ledger chỉ chặn chi vượt số dư | Validate số tiền phân xử trước khi ghi claim và ledger trong transaction |
+| Mở claim cần biên bản RETURN có `NOT_OK` | FK bảo vệ liên kết booking, chưa kiểm tra điều kiện NOT_OK khi tạo claim | Kiểm tra biên bản, quyền mở claim và cửa sổ claim |
+| `Review.rating` trong 1–5 | Chỉ lưu Int, chưa có CHECK giới hạn 1–5 | Validate rating trước khi tạo review |
+| Chuyển trạng thái booking, quyền thao tác và điều kiện đi kèm | Enum giới hạn tên trạng thái; trigger returnedAt không thay thế state machine | Kiểm tra role/quyền sở hữu, trạng thái nguồn, biên bản và cập nhật có điều kiện trong transaction |
+
+Các service nghiệp vụ này chưa được triển khai đầy đủ. Không coi các điều kiện
+trong mục 5 là ràng buộc DB chỉ vì chúng được ghi trong bảng chuyển trạng thái.
+
+### 6.3. Quy ước và giới hạn khác
+
 - Enum bút toán `HOLD` trong kế hoạch Excel được thống nhất thành `DEPOSIT_HELD`;
   trạng thái Booking cùng tên thể hiện bước giữ cọc đã hoàn tất.
 
