@@ -8,15 +8,15 @@ trại. Ba vai trò — đúng 3, không thêm (yêu cầu môn học, ADR-007):
 | Vai trò | Nguồn gốc tài khoản | Làm được gì (tóm tắt) |
 | --- | --- | --- |
 | **Admin** | Seed / Admin cấp | Quản user, category + checklist, duyệt khiếu nại, khoá user/item, audit log, policy settings |
-| **Seller** | Đăng ký | CRUD item + giá + cọc, chặn ngày, duyệt booking, biên bản nhận/trả, mở claim, xem sổ cọc |
-| **Buyer** | Đăng ký | Tìm theo khung ngày, đặt/huỷ booking, mở claim, review, xem trạng thái cọc |
+| **Owner** | Đăng ký | CRUD item + giá + cọc, chặn ngày, duyệt booking, biên bản nhận/trả, mở claim, xem sổ cọc |
+| **Renter** | Đăng ký | Tìm theo khung ngày, đặt/huỷ booking, mở claim, review, xem trạng thái cọc |
 
 ## 2. Quy tắc nghiệp vụ sống còn (deterministic — không AI)
 
 1. **Không đặt chồng**: một (item, ngày) chỉ một dòng lịch — chặn ở DB.
 2. **Cọc giữ trước**: đặt booking → `DEPOSIT_HELD`; trả đủ sau cửa sổ claim → `RELEASE`.
 3. **Cửa sổ claim 48h** (`policy_settings.claim_window_hours`): hết giờ không
-   claim → hệ thống **tự** nhả cọc. Có NOT_OK ở biên bản trả → Buyer/Seller mở claim.
+   claim → hệ thống **tự** nhả cọc. Có NOT_OK ở biên bản trả → Renter/Owner mở claim.
 4. **Award ≤ deposit**: Admin quyết số tiền, hệ thống chặn vượt cọc.
 5. **Snapshot tiền**: sửa giá không ảnh hưởng booking đã tạo.
 6. **Sổ cọc append-only**; **audit log append-only**.

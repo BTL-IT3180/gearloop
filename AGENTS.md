@@ -99,7 +99,7 @@ Phân quyền phải được thực hiện ở server. Ẩn nút trên giao di�
 - Mọi truy vấn liên quan đến dữ liệu riêng tư phải giới hạn theo danh tính và phạm vi truy cập phù hợp.
 - Không tự thêm role, mở rộng quyền hoặc thay đổi chính sách truy cập khi chưa được phê duyệt.
 
-Tên role phải lấy từ schema, code và đặc tả đã được xác nhận. Nếu `SELLER`/`BUYER` và `OWNER`/`RENTER` xuất hiện không thống nhất, phải báo lại để nhóm xác nhận; không tự đổi tên hoặc trộn lẫn các role.
+Tên role hiện được xác nhận là `ADMIN`/`OWNER`/`RENTER` (đổi tên theo yêu cầu ngày 11/11/2026). Dùng thống nhất trong schema, code và tài liệu; không tự thêm hoặc đổi role. Tên cũ chỉ giữ trong migration lịch sử và kiểm thử nâng cấp dữ liệu.
 
 ## 6. Quy tắc nghiệp vụ và tính toàn vẹn dữ liệu
 

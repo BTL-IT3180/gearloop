@@ -16,6 +16,12 @@ là trích đoạn ràng buộc, không phải câu lệnh SQL độc lập.
 
 Xem thêm: [prod.md](./prod.md) · [backend-flows.md](./backend-flows.md) · [adr/](./adr/)
 
+Tên gọi nghiệp vụ và schema dùng thống nhất: **Owner** (chủ thiết bị, role
+`OWNER`) và **Renter** (người thuê, role `RENTER`). Enum `Role` gồm `ADMIN`,
+`OWNER`, `RENTER`; thiết bị dùng `Item.ownerId`, booking dùng `Booking.renterId`.
+Migration `20261111000000_rename_owner_renter_roles` đổi tên enum và cột tại chỗ,
+giữ nguyên user, booking và các liên kết đã có.
+
 ---
 
 ## 1. Bức tranh tổng thể
@@ -33,7 +39,7 @@ Hiểu nhanh bằng một câu:
 
 > Một **Chủ thiết bị** đăng một **Item** thuộc một **Category**, kèm bảng giá
 > theo ngày và % cọc. Lịch cho thuê được biểu diễn bằng **CalendarDay** — mỗi
-> ngày một dòng. **Buyer** đặt một **Booking** chiếm các dòng lịch đó và cọc
+> ngày một dòng. **Renter** đặt một **Booking** chiếm các dòng lịch đó và cọc
 > được ghi vào **DepositLedger**. Hai **ConditionReport** (nhận/trả) là chứng
 > cứ; hư hỏng sinh ra **DamageClaim** do Admin xét.
 
@@ -70,7 +76,7 @@ erDiagram
         serial  id PK
         text email UK
         text passwordHash "bcrypt"
-        Role role "ADMIN | SELLER | BUYER"
+        Role role "ADMIN | OWNER | RENTER"
         boolean isActive
     }
     Category {
@@ -113,7 +119,7 @@ erDiagram
     Booking {
         serial id PK
         int    itemId FK
-        int    buyerId FK
+        int    renterId FK
         date   startDate
         date   endDate
         BookingStatus status "9 trạng thái — mục 5"
@@ -232,7 +238,7 @@ Ký hiệu: **PK** khóa chính · **FK** khóa ngoại · **UK** unique.
 | `email` | `text` | Không | - | UK | Đăng nhập |
 | `passwordHash` | `text` | Không | - | | bcrypt — **không bao giờ trả về client** (ADR-002) |
 | `fullName` | `text` | Không | - | | Tên hiển thị |
-| `role` | `Role` | Không | `BUYER` | | `ADMIN \| SELLER \| BUYER` — đúng 3 vai trò (ADR-007) |
+| `role` | `Role` | Không | `RENTER` | | `ADMIN \| OWNER \| RENTER` — đúng 3 vai trò (ADR-007) |
 | `isActive` | `boolean` | Không | `true` | | Admin khoá → chặn đăng nhập |
 
 ### 3.2. `Item`
@@ -292,8 +298,8 @@ tới theo dữ liệu seed), đặt/hủy cập nhật **cả `kind` và `booki
 
 | Kịch bản | Với `@@unique([itemId, date])` |
 | --- | --- |
-| An đặt ngày 14/11 → Seller từ chối | Cùng dòng đổi `kind = FREE`, `bookingId = NULL`. Linh đặt lại bình thường |
-| Hai buyer đặt cùng ngày | UPDATE có điều kiện FREE trong transaction; kiểm tra đủ số dòng, bên thua rollback |
+| An đặt ngày 14/11 → Owner từ chối | Cùng dòng đổi `kind = FREE`, `bookingId = NULL`. Linh đặt lại bình thường |
+| Hai Renter đặt cùng ngày | UPDATE có điều kiện FREE trong transaction; kiểm tra đủ số dòng, bên thua rollback |
 | Script chèn thẳng dòng lịch trùng | Unique từ chối INSERT trùng; UPDATE cùng dòng cần điều kiện riêng |
 
 Khi chiếm lịch, đặt `kind = BOOKED` cùng `bookingId` của booking. Khi giải phóng,
@@ -310,7 +316,7 @@ truy vấn đọc hay ngăn ghi đè bookingId. Booking service hiện chưa đ�
 Đặt booking là **một transaction**: tạo `Booking(REQUESTED)` → chiếm đủ ngày
 FREE → ghi `DepositLedger(DEPOSIT_HELD)` bằng snapshot cọc (bỏ qua nếu cọc 0)
 → chuyển booking sang `DEPOSIT_HELD`. Có điều kiện nào thất bại → rollback
-toàn bộ. Seller duyệt sau đó: `DEPOSIT_HELD → APPROVED`, không giữ cọc lần hai.
+toàn bộ. Owner duyệt sau đó: `DEPOSIT_HELD → APPROVED`, không giữ cọc lần hai.
 
 ---
 
@@ -329,13 +335,13 @@ Các sơ đồ và bảng dưới đây mô tả luồng nghiệp vụ dự ki�
 
 ```mermaid
 stateDiagram-v2
-    [*] --> REQUESTED : Buyer đặt lịch<br/>POST /api/bookings
+    [*] --> REQUESTED : Renter đặt lịch<br/>POST /api/bookings
     REQUESTED --> DEPOSIT_HELD : hoàn tất giữ cọc trong transaction tạo booking
-    DEPOSIT_HELD --> APPROVED : Seller duyệt
-    DEPOSIT_HELD --> CLOSED : Seller từ chối<br/>(VOID nếu còn dư, FREE và bookingId NULL)
+    DEPOSIT_HELD --> APPROVED : Owner duyệt
+    DEPOSIT_HELD --> CLOSED : Owner từ chối<br/>(VOID nếu còn dư, FREE và bookingId NULL)
     APPROVED --> PICKED_UP : giao máy<br/>+ biên bản PICKUP
-    PICKED_UP --> RETURN_PENDING : buyer trả
-    RETURN_PENDING --> RETURNED : Seller ghi biên bản RETURN
+    PICKED_UP --> RETURN_PENDING : Renter trả
+    RETURN_PENDING --> RETURNED : Owner ghi biên bản RETURN
     RETURNED --> CLOSED : hết claim_window_hours không claim<br/>→ ledger RELEASE tự động
     RETURNED --> DISPUTED : có biên bản NOT_OK → claim
     DISPUTED --> RESOLVED : Admin xét<br/>→ ledger DEDUCT hoặc RELEASE
@@ -353,13 +359,13 @@ cần được xác định trong task triển khai luồng hủy.
 
 | Từ | Sang | Ai được làm | Điều kiện / Vi phạm |
 | --- | --- | --- | --- |
-| (mới) | `REQUESTED` | Buyer | Ngày không FREE → `409` |
+| (mới) | `REQUESTED` | Renter | Ngày không FREE → `409` |
 | `REQUESTED` | `DEPOSIT_HELD` | Hệ thống, trong transaction tạo booking | Đã chiếm đủ lịch và ghi cọc; cọc 0 không ghi ledger |
-| `DEPOSIT_HELD` | `APPROVED` | Seller (chủ item) | Buyer tự duyệt → `403`; không ghi cọc lần hai |
-| `DEPOSIT_HELD` | `CLOSED` | Seller | Lịch `kind = FREE`, `bookingId = NULL`; ghi `VOID` khi số dư còn giữ > 0 |
-| `APPROVED` | `PICKED_UP` | Seller | Phải có biên bản `PICKUP` đầy đủ mục required |
+| `DEPOSIT_HELD` | `APPROVED` | Owner (chủ item) | Renter tự duyệt → `403`; không ghi cọc lần hai |
+| `DEPOSIT_HELD` | `CLOSED` | Owner | Lịch `kind = FREE`, `bookingId = NULL`; ghi `VOID` khi số dư còn giữ > 0 |
+| `APPROVED` | `PICKED_UP` | Owner | Phải có biên bản `PICKUP` đầy đủ mục required |
 | `RETURNED` | `CLOSED` | **Hệ thống** (timer) | Không claim trong `claim_window_hours` → `RELEASE` |
-| `RETURNED` | `DISPUTED` | Seller hoặc Buyer | Claim mới chỉ khi biên bản RETURN có `NOT_OK` |
+| `RETURNED` | `DISPUTED` | Owner hoặc Renter | Claim mới chỉ khi biên bản RETURN có `NOT_OK` |
 | `DISPUTED` | `RESOLVED` | Admin | Award ≤ `depositVnd`; ghi `DEDUCT` + phần nhả lại |
 | `CLOSED` | bất kỳ | **Không ai** | Trạng thái chết |
 | `RESOLVED` | bất kỳ | **Không ai trong luồng hiện tại** | Kết thúc phân xử claim |

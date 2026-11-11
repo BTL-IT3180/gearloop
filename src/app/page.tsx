@@ -1,6 +1,6 @@
 const roles = [
   {
-    name: "Người thuê (Buyer)",
+    name: "Người thuê (Renter)",
     points: [
       "Tìm thiết bị trống đúng khung ngày cần dùng",
       "Tiền cọc được giữ trong sổ cọc, tự nhả khi trả đủ",
@@ -8,7 +8,7 @@ const roles = [
     ],
   },
   {
-    name: "Chủ thiết bị (Seller)",
+    name: "Chủ thiết bị (Owner)",
     points: [
       "Cho đồ nhàn rỗi sinh lời theo bảng giá theo ngày",
       "Lịch đặt không thể chồng — chặn ngay ở database",

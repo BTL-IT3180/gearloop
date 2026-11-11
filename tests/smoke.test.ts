@@ -11,8 +11,8 @@ describe("seed v1 (GL-109)", () => {
     const users = await prisma.user.findMany();
     expect(users).toHaveLength(6);
     expect(users.filter((u) => u.role === "ADMIN")).toHaveLength(1);
-    expect(users.filter((u) => u.role === "SELLER")).toHaveLength(2);
-    expect(users.filter((u) => u.role === "BUYER")).toHaveLength(3);
+    expect(users.filter((u) => u.role === "OWNER")).toHaveLength(2);
+    expect(users.filter((u) => u.role === "RENTER")).toHaveLength(3);
     // bcrypt hash, không plaintext (ADR-002)
     for (const u of users) {
       expect(u.passwordHash).toMatch(/^\$2[aby]\$/);

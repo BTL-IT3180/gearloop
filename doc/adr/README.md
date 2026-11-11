@@ -11,4 +11,4 @@ nhắc → quyết định → hệ quả. Format mirror từ template MedBook.
 | [004](./004-deposit-ledger.md) | Sổ cọc append-only, tiền Int VND | Chấp nhận |
 | [005](./005-prisma-migrations.md) | Prisma ORM + chiến lược migration | Chấp nhận |
 | [006](./006-layered-architecture.md) | Kiến trúc 3 tầng Route → Service → Repository (trong Next) | Chấp nhận |
-| [007](./007-rbac-3-roles.md) | RBAC đúng 3 vai trò: Admin / Seller / Buyer | Chấp nhận |
+| [007](./007-rbac-3-roles.md) | RBAC đúng 3 vai trò: Admin / Owner / Renter | Chấp nhận |

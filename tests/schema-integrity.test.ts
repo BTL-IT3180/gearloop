@@ -9,7 +9,7 @@ let admin: PrismaClient;
 let db: PrismaClient;
 let itemId: number;
 let otherItemId: number;
-let buyerId: number;
+let renterId: number;
 const startDate = new Date("2030-01-01T00:00:00Z");
 const endDate = new Date("2030-01-03T00:00:00Z");
 
@@ -27,12 +27,12 @@ beforeAll(async () => {
   if (migration.status !== 0) throw new Error("Cannot deploy migrations to isolated test schema");
   db = new PrismaClient({ datasources: { db: { url: url.toString() } } });
   const owner = await db.user.create({ data: {
-    email: "owner@integrity.test", passwordHash: "unused-test-hash", fullName: "Owner", role: "SELLER",
+    email: "owner@integrity.test", passwordHash: "unused-test-hash", fullName: "Owner", role: "OWNER",
   } });
-  const buyer = await db.user.create({ data: {
-    email: "buyer@integrity.test", passwordHash: "unused-test-hash", fullName: "Buyer", role: "BUYER",
+  const renter = await db.user.create({ data: {
+    email: "renter@integrity.test", passwordHash: "unused-test-hash", fullName: "Renter", role: "RENTER",
   } });
-  buyerId = buyer.id;
+  renterId = renter.id;
   const category = await db.category.create({ data: { name: "Integrity tests" } });
   const data = { ownerId: owner.id, categoryId: category.id, replacementValueVnd: 10_000 };
   itemId = (await db.item.create({ data: { ...data, title: "Item A" } })).id;
@@ -63,7 +63,7 @@ async function rollbackTest(run: (tx: Prisma.TransactionClient) => Promise<void>
 function createBooking(client: Prisma.TransactionClient | PrismaClient,
   changes: Partial<Prisma.BookingUncheckedCreateInput> = {}) {
   return client.booking.create({ data: {
-    itemId, buyerId, startDate, endDate, totalVnd: 3_000, depositVnd: 1_000,
+    itemId, renterId, startDate, endDate, totalVnd: 3_000, depositVnd: 1_000,
     ...changes,
   } });
 }
@@ -377,7 +377,7 @@ describe("Historical user references", () => {
         if (reference === "ledger") {
           await tx.depositLedger.create({ data: { ...entry(booking.id, "DEPOSIT_HELD", 1_000), createdById: user.id } });
         } else {
-          await tx.damageClaim.create({ data: { bookingId: booking.id, openedById: buyerId,
+          await tx.damageClaim.create({ data: { bookingId: booking.id, openedById: renterId,
             resolvedById: user.id, status: "RESOLVED", reason: "Test", amountRequestedVnd: 1,
             amountAwardedVnd: 1, resolvedAt: new Date() } });
         }
@@ -449,7 +449,7 @@ async function checklistFixture(tx: Prisma.TransactionClient) {
   const template = await tx.checklistTemplateItem.create({ data: {
     categoryId: item.categoryId, label: "Lens intact", required: true,
   } });
-  const report = await tx.conditionReport.create({ data: { bookingId: booking.id, reporterId: buyerId, phase: "PICKUP" } });
+  const report = await tx.conditionReport.create({ data: { bookingId: booking.id, reporterId: renterId, phase: "PICKUP" } });
   const entryData = { reportId: report.id, checklistItemId: template.id, state: "OK" as const,
     labelSnapshot: "Untrusted label", requiredSnapshot: false };
   return { template, entryData };
