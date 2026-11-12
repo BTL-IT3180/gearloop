@@ -2,7 +2,7 @@
 CREATE SCHEMA IF NOT EXISTS "public";
 
 -- CreateEnum
-CREATE TYPE "Role" AS ENUM ('ADMIN', 'SELLER', 'BUYER');
+CREATE TYPE "Role" AS ENUM ('ADMIN', 'OWNER', 'RENTER');
 
 -- CreateEnum
 CREATE TYPE "ItemStatus" AS ENUM ('ACTIVE', 'ARCHIVED', 'SUSPENDED');
@@ -31,7 +31,7 @@ CREATE TABLE "User" (
     "email" TEXT NOT NULL,
     "passwordHash" TEXT NOT NULL,
     "fullName" TEXT NOT NULL,
-    "role" "Role" NOT NULL DEFAULT 'BUYER',
+    "role" "Role" NOT NULL DEFAULT 'RENTER',
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -118,7 +118,7 @@ CREATE TABLE "CalendarDay" (
 CREATE TABLE "Booking" (
     "id" SERIAL NOT NULL,
     "itemId" INTEGER NOT NULL,
-    "buyerId" INTEGER NOT NULL,
+    "renterId" INTEGER NOT NULL,
     "startDate" DATE NOT NULL,
     "endDate" DATE NOT NULL,
     "status" "BookingStatus" NOT NULL DEFAULT 'REQUESTED',
@@ -250,7 +250,7 @@ CREATE INDEX "CalendarDay_itemId_date_idx" ON "CalendarDay"("itemId", "date");
 CREATE UNIQUE INDEX "CalendarDay_itemId_date_key" ON "CalendarDay"("itemId", "date");
 
 -- CreateIndex
-CREATE INDEX "Booking_buyerId_idx" ON "Booking"("buyerId");
+CREATE INDEX "Booking_renterId_idx" ON "Booking"("renterId");
 
 -- CreateIndex
 CREATE INDEX "Booking_itemId_status_idx" ON "Booking"("itemId", "status");
@@ -310,7 +310,7 @@ ALTER TABLE "CalendarDay" ADD CONSTRAINT "CalendarDay_bookingId_itemId_fkey" FOR
 ALTER TABLE "Booking" ADD CONSTRAINT "Booking_itemId_fkey" FOREIGN KEY ("itemId") REFERENCES "Item"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Booking" ADD CONSTRAINT "Booking_buyerId_fkey" FOREIGN KEY ("buyerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Booking" ADD CONSTRAINT "Booking_renterId_fkey" FOREIGN KEY ("renterId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ConditionReport" ADD CONSTRAINT "ConditionReport_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

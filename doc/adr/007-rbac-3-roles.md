@@ -24,7 +24,9 @@ GearLoop tự nhiên có 3 phía.
 - Theo xác nhận đổi tên ngày 11/11/2026, chủ thiết bị dùng **Owner** / `OWNER`,
   người thuê dùng **Renter** / `RENTER` trong cả tài liệu và schema/API.
   Booking dùng `renterId` và relation `renter`; Item giữ `ownerId` và `owner`.
-  Migration đổi tên tại chỗ, không thêm role hoặc thay đổi ma trận quyền.
+  Theo yêu cầu ngày 12/11/2026, tên mới được ghi trực tiếp trong migration đầu
+  tiên; không thêm migration rename, role hoặc thay đổi ma trận quyền. DB đã
+  áp dụng lịch sử cũ cần xử lý theo `doc/cicd.md` trước khi triển khai.
 - Guard 2 lớp: `src/middleware.ts` chặn route group sai vai trò (redirect/403
   UI) + `requireRole()` đầu mỗi service (403 API) — **UI guard không bao giờ
   là lớp bảo vệ duy nhất**.

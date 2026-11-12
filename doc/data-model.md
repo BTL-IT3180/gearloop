@@ -19,8 +19,8 @@ Xem thêm: [prod.md](./prod.md) · [backend-flows.md](./backend-flows.md) · [ad
 Tên gọi nghiệp vụ và schema dùng thống nhất: **Owner** (chủ thiết bị, role
 `OWNER`) và **Renter** (người thuê, role `RENTER`). Enum `Role` gồm `ADMIN`,
 `OWNER`, `RENTER`; thiết bị dùng `Item.ownerId`, booking dùng `Booking.renterId`.
-Migration `20261111000000_rename_owner_renter_roles` đổi tên enum và cột tại chỗ,
-giữ nguyên user, booking và các liên kết đã có.
+Migration đầu tiên tạo trực tiếp role và cột theo các tên này; không có migration
+rename riêng. DB đã áp dụng lịch sử cũ cần DB OWNER xử lý trước khi dùng bản mới.
 
 ---
 

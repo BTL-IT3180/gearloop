@@ -71,12 +71,15 @@ npx prisma migrate deploy
 
 - Không bỏ bước đồng bộ database khỏi CI.
 - Migration chứa CHECK, partial unique index và trigger mà `db push` không tạo.
-- Migration `20261111000000_rename_owner_renter_roles` đổi role sang
-  `ADMIN`/`OWNER`/`RENTER` và cột Booking sang `renterId` bằng lệnh RENAME,
-  giữ nguyên dữ liệu và FK/index. DB đã chạy ba migration trước chỉ cần
-  `migrate deploy`, không reset hoặc seed lại để chuyển role.
-  Khi triển khai cần đồng bộ Prisma Client và mọi consumer của role/field mới;
-  phiên JWT chứa role cũ cần đăng nhập lại, không coi role cũ là role mới.
+- Theo yêu cầu ngày 12/11/2026, migration đầu tiên đã được sửa để tạo trực tiếp
+  role `ADMIN`/`OWNER`/`RENTER`, default RENTER và cột Booking.renterId cùng FK/index.
+  Giữ ba migration, không có migration rename riêng. DB mới/trống dùng lịch sử này.
+  DB từng áp dụng bản cũ sẽ lệch checksum; `migrate deploy` không tự đổi tên các
+  đối tượng đã có. DB OWNER cần chọn tạo lại DB local khi được phép mất dữ liệu,
+  hoặc chuẩn bị chuyển đổi/baseline riêng nếu phải giữ dữ liệu. Không tự sửa bảng
+  `_prisma_migrations` để che lệch lịch sử và không reset DB dùng chung.
+  Consumer và Prisma Client phải dùng role/field mới; phiên JWT chứa role cũ
+  cần đăng nhập lại.
 - Với DB đã tạo bằng `db push`, không chạy migration đầu tiên trực tiếp và không
   reset DB dùng chung. DB OWNER cần kiểm kê dữ liệu, thiết kế baseline/upgrade
   riêng: đổi enum HOLD thành DEPOSIT_HELD, backfill eventKey theo sự kiện thực tế,

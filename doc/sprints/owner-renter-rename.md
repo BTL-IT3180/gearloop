@@ -1,58 +1,40 @@
-# Đồng bộ Owner / Renter — 11/11/2026
+# Đồng bộ Owner / Renter — cập nhật 12/11/2026
 
 ## Mục tiêu và quyết định
 
-Theo yêu cầu người phụ trách, đổi cả tên role kỹ thuật và tên gọi trong tài liệu:
-`ADMIN`, `OWNER` (chủ thiết bị), `RENTER` (người thuê). Giữ 16 model và quyền
-hiện có; không thêm role hoặc đổi chính sách phân quyền.
+Thống nhất role `ADMIN`, `OWNER`, `RENTER` và Booking.renterId/relation renter.
+Giữ 16 model và quyền hiện có. Theo yêu cầu ngày 12/11, sửa tên trực tiếp trong
+migration đầu tiên, bỏ migration rename riêng.
 
-## File thay đổi
+## File thay đổi trong lượt chỉnh lịch sử
 
-- `prisma/schema.prisma`: enum Role, default RENTER, Booking.renterId/relation
-  renter và index tương ứng.
-- `prisma/migrations/20261111000000_rename_owner_renter_roles/migration.sql`:
-  RENAME enum label, cột, FK và index tại chỗ; không sửa ba migration lịch sử.
-- `src/db/seed.ts`, `src/app/page.tsx`: seed dùng role mới, nhãn hiển thị
-  Owner/Renter. Seed guard và dữ liệu mẫu còn lại giữ nguyên.
-- Các test hiện có: dùng role/field mới trong kiểm tra quyền, seed và schema.
-  Không giữ bộ test nâng cấp riêng theo yêu cầu người phụ trách.
-- README, hướng dẫn chạy, tài liệu trong `doc/`, `AGENTS.md` và ba issue template:
-  thống nhất tên gọi, enum và renterId; cập nhật hướng dẫn triển khai/regression.
+- `prisma/migrations/20261101000000_booking_calendar_ledger_integrity/migration.sql`:
+  tạo enum/default mới, cột renterId cùng FK/index ngay từ đầu.
+- Bỏ migration rename; hai migration bổ sung bảo vệ lịch sử dữ liệu giữ nguyên.
+- `doc/data-model.md`, `doc/cicd.md`, ADR-007: cập nhật cách tạo DB mới và tác động
+  tới DB đã áp dụng migration cũ. Schema, seed và code đã dùng tên mới từ lượt trước.
 
-## Kiểm thử thực tế
+## Kiểm thử
 
-- Prisma validate/generate: đạt, Prisma Client 6.19.3.
-- `npm run lint`: đạt.
-- `npm run typecheck -- --incremental false`: đạt.
-- `npm run build`: đạt.
-- Trước khi bỏ test nâng cấp riêng: `npm test` đạt 104/104 test, 5 file,
-  PostgreSQL 16.15 trong container tạm riêng. Sau khi bỏ test đó, bộ test còn
-  103 test trong 4 file; chưa chạy lại sau thao tác xóa file test.
-- Deploy cả bốn migration trên DB mới: đạt; migrate diff DB → schema không lệch.
-- Kiểm chứng upgrade đã chạy trước khi bỏ test riêng: triển khai ba migration
-  cũ, tạo user theo role cũ và booking
-  theo cột cũ cùng ngày BOOKED, ledger/audit, rồi deploy migration mới.
-  Role và quan hệ đổi đúng, ID/timestamp và lịch sử giữ nguyên, default là RENTER,
-  role cũ bị từ chối và FK renterId vẫn hoạt động.
-- Cả ba sơ đồ Mermaid parse thành công; ERD đủ 16 entity và field khớp Prisma;
-  bảng Markdown/code fence và `git diff --check` đạt.
+- Prisma validate: đạt.
+- PostgreSQL 16.15 tạm: deploy đủ ba migration trên DB trống, seed thành công.
+- `npm test`: 103/103 test, bốn file, đạt với lịch sử migration đã chỉnh.
+- Prisma migrate diff từ DB vừa tạo tới schema hiện tại: không có khác biệt.
+- `git diff --check`: đạt.
+- Không chạy lại lint/typecheck/build/E2E trong lượt này vì chỉ sửa SQL migration
+  và tài liệu. Kết quả cũ của phương án có migration rename không được dùng để
+  khẳng định đường nâng cấp DB cũ vẫn hoạt động với lịch sử mới.
 
 ## Acceptance criteria và giới hạn
 
-- Đạt: schema/code/seed/docs dùng thống nhất Owner/Renter; migration mới hỗ trợ
-  cả DB mới và DB đã chạy ba migration trước, không cần reset hoặc seed lại.
-- Tên cũ chỉ còn trong migration lịch sử và lệnh đổi tên của migration mới.
-- Bộ regression hiện có kiểm tra schema cuối cùng, không thay thế kiểm chứng
-  đường nâng cấp dữ liệu cũ. Kiểm chứng upgrade đã đạt trong lượt trước,
-  nhưng không được giữ thành test tự động thường xuyên.
-- Chưa áp dụng migration vào DB dev, DB dùng chung hoặc cloud.
-- Chưa xác minh CI remote; cần DB OWNER review trước merge.
-- Consumer khác phải đổi sang role mới và renterId. Phiên JWT đã chứa role cũ
-  cần đăng nhập lại khi triển khai. Không hỗ trợ song song tên role cũ.
-
-## Triển khai sau review
-
-Với DB đã có đủ ba migration trước, chạy `npm run db:deploy` và
-`npx prisma generate`, rồi build/restart ứng dụng cùng phiên bản code mới.
-Không dùng db push hoặc reset để chuyển tên. DB cũ chưa có migration history
-vẫn cần quy trình baseline/upgrade do DB OWNER chuẩn bị theo `doc/cicd.md`.
+- Migration history còn ba migration, tạo trực tiếp tên Owner/Renter.
+- Theo yêu cầu tiếp theo của người phụ trách, đã kiểm tra không có dữ liệu nghiệp
+  vụ và tạo lại riêng DB local `gearloop` tại localhost:55432. Deploy đủ ba migration,
+  generate và seed đạt; migrate status đồng bộ và diff không có khác biệt.
+  DB mới có 1 ADMIN, 2 OWNER, 3 RENTER, 4 item, 240 ngày lịch; booking/ledger/audit
+  đều rỗng. Booking chỉ có renterId. DB cloud, DB test và volume không bị xóa.
+- Lịch sử mới không tự nâng cấp DB ở máy khác đã chạy migration cũ; các DB đó cần
+  người phụ trách quyết định tạo lại hoặc chuyển đổi riêng theo `doc/cicd.md`.
+- Chưa xác minh CI remote; thay đổi history cần DB OWNER review trước merge.
+- Cách chạy cho DB mới/trống: `npm run db:deploy`, `npx prisma generate`.
+  DB đã áp dụng lịch sử cũ phải xử lý trước theo `doc/cicd.md`, không chỉ deploy lại.
