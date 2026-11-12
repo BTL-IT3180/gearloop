@@ -1,5 +1,8 @@
 # GearLoop — Chiến lược kiểm thử & regression
 
+Mục đích: Chiến lược kiểm thử và regression của GearLoop; bảng kiểm kê chi tiết từng suite hiện có nằm ở [test-cases.md](./test-cases.md).
+Nguồn: tệp `doc/regression-testing.md` trước lượt migration tài liệu 12/11/2026, nay đặt tại `docs/testing/test-strategy.md` (nội dung giữ nguyên, chỉ bổ sung dòng mục đích/nguồn và liên kết).
+
 Triết lý mirror từ template: **bộ test bảo vệ tính năng đã có**, chạy lại sau
 mỗi story mới để code mới không làm vỡ luồng cũ. Test dùng HTTP thật và
 PostgreSQL thật — **không mock** (mock chỉ che giấu lỗi tích hợp).

@@ -27,8 +27,8 @@ muốn biết app chạy những query nào, đọc đúng các file đó (đún
    (`npx prisma migrate dev --name add_damage_claim`).
 2. **Chỉ DB OWNER** merge PR chứa migration.
 3. CI/dev lần đầu: `prisma db push` — **chuyển sang `migrate deploy`** ngay khi
-   migration đầu tiên có mặt (ghi trong `doc/cicd.md`).
-4. `prisma/schema.prisma` đổi → `doc/data-model.md` phải đổi cùng PR.
+   migration đầu tiên có mặt (ghi trong `docs/guides/development-workflow.md`).
+4. `prisma/schema.prisma` đổi → `docs/architecture/database-design.md` phải đổi cùng PR.
 
 ## Hệ quả
 

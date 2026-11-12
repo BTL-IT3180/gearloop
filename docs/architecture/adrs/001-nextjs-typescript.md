@@ -21,7 +21,7 @@ sớm để bạn cùng lớp beta theo PR.
 ## Quyết định
 
 **Next.js 15 + TypeScript strict.** Giữ nguyên **tổ chức** của template:
-kiến trúc 3 tầng (ADR-006), `doc/` + ADR, seed/migrate trong `src/db/`,
+kiến trúc 3 tầng (ADR-006), `docs/` + ADR, seed/migrate trong `src/db/`,
 CI với postgres service, hợp đồng `{ data } / { error }`, docs tiếng Việt.
 Stack là thay đổi **có chủ đích**, được ghi nhận công khai — nếu giảng viên
 yêu cầu đúng stack template, chuyển về Express giữ nguyên tầng services/
@@ -48,4 +48,4 @@ giữa 8 pod; API + UI chung một deploy.
 | `src/db/seed.js`, `migrate.js` | `src/db/seed.ts` + `prisma migrate` |
 | `public/` | `public/` (giống nhau) |
 | `tests/` | `tests/` (vitest thay node --test) |
-| `doc/` + ADR | `doc/` + ADR (giống format) |
+| `doc/` + ADR | `docs/` + ADR (giống format) |

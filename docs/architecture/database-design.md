@@ -14,7 +14,7 @@ Khi viết SQL phải đặt tên có chữ hoa trong dấu nháy kép, ví dụ
 `SELECT "bookingId" FROM "CalendarDay"`. Các khối `UNIQUE (...)` dưới đây
 là trích đoạn ràng buộc, không phải câu lệnh SQL độc lập.
 
-Xem thêm: [prod.md](./prod.md) · [backend-flows.md](./backend-flows.md) · [adr/](./adr/)
+Xem thêm: [product-overview.md](../requirements/product-overview.md) · [api-contract.md](./api-contract.md) · [adrs/](./adrs/)
 
 Tên gọi nghiệp vụ và schema dùng thống nhất: **Owner** (chủ thiết bị, role
 `OWNER`) và **Renter** (người thuê, role `RENTER`). Enum `Role` gồm `ADMIN`,
@@ -327,9 +327,10 @@ không nhận timestamp do client cung cấp, không đổi khi sửa updatedAt 
 claim. Hạn nhả cọc tính từ returnedAt cộng số giờ trong `PolicySetting` có
 `key = 'claim_window_hours'` (seed mặc định 48 giờ), không phải cột của Booking.
 
-Các sơ đồ và bảng dưới đây mô tả luồng nghiệp vụ dự kiến trong `prod.md` và
-`backend-flows.md`, chưa phải state machine đã được service hoặc DB thực thi
-đầy đủ. Phạm vi bảo vệ hiện tại được phân biệt ở mục 6.
+Các sơ đồ và bảng dưới đây mô tả luồng nghiệp vụ dự kiến trong
+[product-overview.md](../requirements/product-overview.md) và
+[api-contract.md](./api-contract.md), chưa phải state machine đã được service
+hoặc DB thực thi đầy đủ. Phạm vi bảo vệ hiện tại được phân biệt ở mục 6.
 
 ### 5.1. Vòng đời `Booking`
 
@@ -350,10 +351,11 @@ stateDiagram-v2
 ```
 
 `CLOSED` kết thúc luồng từ chối hoặc trả máy không có claim; `RESOLVED` kết thúc
-luồng phân xử claim theo `backend-flows.md` mục 6. Không có bước
-`RESOLVED → CLOSED` trong luồng hiện tại. Sơ đồ chưa liệt kê đầy đủ luồng hủy
-trước PICKED_UP nêu trong `prod.md`; quyền hủy và từng chuyển trạng thái cụ thể
-cần được xác định trong task triển khai luồng hủy.
+luồng phân xử claim theo [api-contract.md](./api-contract.md) mục 6. Không có
+bước `RESOLVED → CLOSED` trong luồng hiện tại. Sơ đồ chưa liệt kê đầy đủ
+luồng hủy trước PICKED_UP nêu trong
+[product-overview.md](../requirements/product-overview.md); quyền hủy và
+từng chuyển trạng thái cụ thể cần được xác định trong task triển khai luồng hủy.
 
 ### 5.2. Bảng chuyển trạng thái (trích)
 

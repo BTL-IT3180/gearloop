@@ -1,5 +1,5 @@
 // GearLoop — schema v1 (Sprint 1, GL-104).
-// Nguồn sự thật của doc/data-model.md — đổi schema phải đổi docs theo.
+// Nguồn sự thật của docs/architecture/database-design.md — đổi schema phải đổi docs theo.
 // Tiền tệ: Int VND (đồng, không số lẻ). Thời gian: UTC.
 
 generator client {
@@ -33,7 +33,7 @@ enum CalendarDayKind {
   BLOCKED
 }
 
-// Máy trạng thái Booking — xem doc/data-model.md mục 5
+// Máy trạng thái Booking — xem docs/architecture/database-design.md mục 5
 enum BookingStatus {
   REQUESTED
   DEPOSIT_HELD
@@ -170,7 +170,7 @@ model DepositPolicy {
 // ── Trái tim của app: lịch ngày dạng materialized ──
 // Unique bảo vệ một dòng/ngày; chiếm lịch cần UPDATE có điều kiện kind = FREE
 // và kiểm tra đủ số ngày trong cùng transaction với booking và cọc.
-// Xem ADR-003 và doc/data-model.md mục 4.
+// Xem ADR-003 và docs/architecture/database-design.md mục 4.
 model CalendarDay {
   id        Int             @id @default(autoincrement())
   itemId    Int
@@ -286,7 +286,7 @@ model DepositLedger {
 
 model Review {
   id        Int      @id @default(autoincrement())
-  bookingId Int      @unique // mỗi lượt thuêClosed chỉ một review
+  bookingId Int      @unique // mỗi lượt thuê chỉ một review
   authorId  Int
   rating    Int // 1..5 — validate ở service
   comment   String?

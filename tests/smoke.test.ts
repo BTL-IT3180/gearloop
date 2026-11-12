@@ -1,6 +1,6 @@
 /**
  * Smoke test lõi schema + seed (chạy trong CI sau khi migrate deploy + seed).
- * CẦN DATABASE_URL trỏ tới database đã seed — xem doc/regression-testing.md.
+ * CẦN DATABASE_URL trỏ tới database đã seed — xem docs/testing/test-strategy.md.
  * Không mock: truy vấn thật vào PostgreSQL, giống tinh thần test của template.
  */
 import { describe, expect, it } from "vitest";

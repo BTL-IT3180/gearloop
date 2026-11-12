@@ -1,4 +1,4 @@
-// Nguồn: gearloop_user_story_specs.md, Phụ lục B4. Pending không được dùng runtime.
+// Nguồn: docs/user-stories/gearloop_user_story_specs.md, Phụ lục B4. Pending không được dùng runtime.
 export const errorCatalog = {
   "ERR-USR-001": { status: 409, message: "Khung ngày bạn chọn đã có người đặt. Vui lòng chọn khung ngày khác." },
   "ERR-USR-002": { status: 400, message: "Ngày bắt đầu phải từ hôm nay trở đi." },
