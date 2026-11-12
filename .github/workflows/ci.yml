@@ -90,7 +90,7 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
 
       - name: E2E smoke test
         run: npm run test:e2e
