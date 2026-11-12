@@ -6,7 +6,7 @@ nhắc → quyết định → hệ quả. Format mirror từ template MedBook.
 | ADR | Quyết định | Trạng thái |
 | --- | --- | --- |
 | [001](./001-nextjs-typescript.md) | Next.js + TypeScript thay Express + vanilla JS của template | Chấp nhận |
-| [002](./002-auth.md) | bcrypt + JWT httpOnly cookie (không dùng demo header) | Chấp nhận |
+| [002](./002-auth.md) | Auth.js Credentials + bcrypt session (không dùng demo header) | Chấp nhận |
 | [003](./003-calendar-materialized.md) | Lịch ngày materialized + `UNIQUE(item_id, date)` | Chấp nhận |
 | [004](./004-deposit-ledger.md) | Sổ cọc append-only, tiền Int VND | Chấp nhận |
 | [005](./005-prisma-migrations.md) | Prisma ORM + chiến lược migration | Chấp nhận |
