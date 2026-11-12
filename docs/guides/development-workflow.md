@@ -59,11 +59,11 @@ Workflow `CI` kích hoạt trên mọi `pull_request` và `push` vào `main`; c�
 | Job | Môi trường | Các bước | Chặn merge |
 | --- | --- | --- | --- |
 | `unit` | ubuntu-latest, Node 20 (cache npm), service container PostgreSQL 16 với db `gearloop_test` cổng 5432; env `NODE_ENV=test`, `DATABASE_URL`, `AUTH_SECRET` giá trị CI | checkout → `npm ci` → `npx prisma generate` → `npm run lint` → `npx prisma migrate deploy` + `npm run db:seed` → `npm run build` → `npm run typecheck` → `npm test` | Có |
-| `e2e` | ubuntu-latest, Node 20 (cache npm) | checkout → `npm ci` → `npx playwright install chromium` → `npm run test:e2e` | Có |
+| `e2e` | ubuntu-latest, Node 20 (cache npm), service container PostgreSQL 16 với db `gearloop_test` | checkout → `npm ci` → `npx prisma generate` → `npx prisma migrate deploy` + `npm run db:seed` → `npx playwright install --with-deps chromium` → `npm run test:e2e` | Có |
 | `verify` | ubuntu-latest, `if: always()`, `needs: [unit, e2e]` | Chỉ thành công khi cả hai job trên kết thúc với kết quả `success` | Có — làm status check bắt buộc trên PR |
 
 - Job `unit` đồng bộ database (migrate + seed) trước khi build/typecheck/test — không bỏ bước đồng bộ database khỏi CI.
-- Job `e2e` không gắn service database; smoke E2E do Playwright tự khởi động Next.js và không cần database.
+- Job `e2e` dùng database riêng đã migrate + seed vì test đăng nhập cần dữ liệu tài khoản; Playwright tự khởi động Next.js.
 
 ## 6. Môi trường
 

@@ -1,7 +1,7 @@
 # GearLoop — Danh mục test case hiện có
 
 Mục đích: Kiểm kê nguyên trạng các bộ test trong repo (mục đích, `describe`, số case, phạm vi, cách chạy) và liệt kê kế hoạch mở rộng theo sprint; đây là bản kiểm kê, không phải đặc tả test mới.
-Nguồn: `tests/api-contract.test.ts`, `tests/schema-integrity.test.ts`, `tests/seed.test.ts`, `tests/smoke.test.ts`, `e2e/smoke.spec.ts`, `docs/testing/test-strategy.md`, `.github/workflows/ci.yml`, `package.json`, `Makefile`, `docs/planning/sprints/{sprint-1,e0-f1-t3-schema-integrity,owner-renter-rename}.md`.
+Nguồn: `tests/api-contract.test.ts`, `tests/schema-integrity.test.ts`, `tests/seed.test.ts`, `tests/smoke.test.ts`, `src/features/auth/credentials.test.ts`, `e2e/smoke.spec.ts`, `e2e/auth.spec.ts`, `docs/testing/test-strategy.md`, `.github/workflows/ci.yml`, `package.json`, `Makefile`, `docs/planning/sprints/{sprint-1,e0-f1-t3-schema-integrity,owner-renter-rename}.md`.
 
 ## 1. Tổng quan
 
@@ -13,10 +13,11 @@ Số case được đếm bằng cách đọc trực tiếp các file test ngày
 | `tests/schema-integrity.test.ts` | 62 | Có (`gearloop_test` local, quyền tạo/xóa schema) | Vitest | Bất biến DB: lịch, sổ cọc, booking, audit, tier, checklist |
 | `tests/seed.test.ts` | 5 | Có (`gearloop_test` local, quyền tạo/xóa schema) | Vitest | Script seed thật: reseed, guard dữ liệu, rollback |
 | `tests/smoke.test.ts` | 5 | Có (DB `gearloop_test` đã migrate + seed) | Vitest | Smoke schema + seed (GL-107, GL-109) |
-| `e2e/smoke.spec.ts` | 1 | Không | Playwright Chromium | Trang chủ render trong trình duyệt |
-| **Tổng unit/DB** | **103** | — | — | 31 + 62 + 5 + 5 |
+| `src/features/auth/credentials.test.ts` | 6 | Có (DB `gearloop_test` đã seed) | Vitest | Credentials, role từ DB, input sai |
+| `e2e/smoke.spec.ts`, `e2e/auth.spec.ts` | 3 | Có (DB `gearloop_test` đã migrate + seed) | Playwright Chromium | Smoke trang chủ, lỗi credentials chung, đăng nhập/đăng xuất |
+| **Tổng Vitest** | **109** | — | — | 31 + 62 + 5 + 5 + 6 |
 
-Số 103 khớp con số "103/103 test, bốn file" ghi trong `docs/planning/sprints/owner-renter-rename.md` (mục Kiểm thử); test e2e (1 case) chạy riêng bằng Playwright, không nằm trong con số Vitest đó.
+Số 103 trong `docs/planning/sprints/owner-renter-rename.md` là kết quả lịch sử trước khi thêm 6 case credentials. Tổng hiện tại là 109 case Vitest; 3 case E2E chạy riêng bằng Playwright.
 
 ## 2. Chi tiết theo file
 
@@ -72,24 +73,31 @@ Mục đích: smoke test nền móng schema + seed trên PostgreSQL thật (khô
 
 Liên hệ requirement: GL-107 (CalendarDay nền tảng) và GL-109 (seed script) theo `docs/planning/sprints/sprint-1.md`; suite cũng nhắc ADR-002 (bcrypt) trong phần seed.
 
-### 2.5 `e2e/smoke.spec.ts` — 1 case, không cần database
+### 2.5 `src/features/auth/credentials.test.ts` — 6 case, cần database đã seed
 
-Mục đích: smoke test trình duyệt bằng Playwright Chromium; Playwright tự khởi động server Next.js rồi mở trang chủ và xác nhận heading "Thuê thiết bị, đừng mua hẳn." hiển thị. [Suy luận] gắn walking skeleton của Sprint 1 (URL live), không có US-xxx trực tiếp trong nguồn.
+Mục đích: kiểm tra đăng nhập credentials bằng PostgreSQL đã seed: mật khẩu/role hợp lệ, mật khẩu sai, user không tồn tại, input sai và role client giả mạo.
+
+### 2.6 `e2e/` — 3 case, cần database đã migrate + seed
+
+Playwright tự khởi động server Next.js và chạy trên Chromium:
+
+- `e2e/smoke.spec.ts` (1): mở trang chủ và xác nhận heading "Thuê thiết bị, đừng mua hẳn." hiển thị.
+- `e2e/auth.spec.ts` (2): thông tin đăng nhập sai dùng lỗi chung; đăng nhập đúng role từ DB rồi đăng xuất.
 
 ## 3. Cách chạy từng suite
 
 | Suite | Lệnh | Ghi chú |
 | --- | --- | --- |
-| Toàn bộ unit/DB | `npm test` (`vitest run`) | Cần `DATABASE_URL` trỏ local `gearloop_test`; DB phải được migrate + seed trước |
+| Toàn bộ unit/DB | `npm test` (`vitest run`) | Cần `DATABASE_URL` trỏ local `gearloop_test`; DB phải được migrate + seed trước; `make test` tự chuẩn bị |
 | `api-contract.test.ts` | `npm test -- tests/api-contract.test.ts` | Không cần DB |
 | `schema-integrity.test.ts`, `seed.test.ts` | `npm test -- tests/<tên-file>.test.ts` | Cần quyền tạo/xóa schema; suite tự tạo và dọn schema rời |
 | `smoke.test.ts` | `npm test -- tests/smoke.test.ts` | Cần DB đã `migrate deploy` + `db:seed` |
-| `e2e/smoke.spec.ts` | `npm run test:e2e` | Cần `npx playwright install chromium` một lần |
+| E2E | `npm run test:e2e` | Cần DB local đã migrate + seed và `npx playwright install chromium` một lần |
 | Qua Makefile | `make test` | Target phụ thuộc `db` và yêu cầu file `.env.test` (`Makefile` dòng ~53) |
 
 Theo `docs/testing/test-strategy.md` §4, lệnh nhanh cục bộ: `docker compose up -d db` rồi `DATABASE_URL="postgres://gearloop:gearloop@localhost:55432/gearloop_test" npm test`. Không dùng `db push` (bỏ qua CHECK/trigger).
 
-Trong CI (`.github/workflows/ci.yml`): job `unit` (PostgreSQL 16, `npm ci` → `prisma generate` → `lint` → `migrate deploy` + `db:seed` → `build` → `typecheck` → `npm test`) và job `e2e` (`npm ci` → `playwright install chromium` → `npm run test:e2e`); job `verify` chỉ xanh khi cả `unit` và `e2e` pass.
+Trong CI (`.github/workflows/ci.yml`), cả job `unit` và `e2e` dùng PostgreSQL 16 riêng, migrate + seed trước khi chạy; `e2e` cài Chromium và chạy `npm run test:e2e`. Job `verify` chỉ xanh khi cả `unit` và `e2e` pass.
 
 ## 4. Kế hoạch mở rộng theo sprint
 
