@@ -58,16 +58,19 @@ docker compose down -v        # dừng và XOÁ SẠCH dữ liệu
 
 ## Tài khoản demo
 
+Trong tài liệu, **Owner** là chủ thiết bị và **Renter** là người thuê.
+Tên role trong schema/API là `OWNER`, `RENTER` và `ADMIN`.
+
 **Mật khẩu cho mọi tài khoản: `demo123`**
 
 | Vai trò | Email | Làm được gì |
 | --- | --- | --- |
 | Quản trị (Admin) | `admin@gearloop.local` | Quản lý user, category/checklist, xét khiếu nại, xem audit log |
-| Chủ thiết bị (Seller) | `mai@gearloop.local` | Đăng tin máy ảnh, quản lý giá/cọc, duyệt booking, ghi biên bản |
-| Chủ thiết bị (Seller) | `lan@gearloop.local` | Đăng tin đồ cắm trại, chặn ngày bảo trì |
-| Người thuê (Buyer) | `an@gearloop.local` | Tìm thiết bị, đặt theo khung ngày, khiếu nại, đánh giá |
-| Người thuê (Buyer) | `linh@gearloop.local` | |
-| Người thuê (Buyer) | `huy@gearloop.local` | |
+| Chủ thiết bị (Owner) | `mai@gearloop.local` | Đăng tin máy ảnh, quản lý giá/cọc, duyệt booking, ghi biên bản |
+| Chủ thiết bị (Owner) | `lan@gearloop.local` | Đăng tin đồ cắm trại, chặn ngày bảo trì |
+| Người thuê (Renter) | `an@gearloop.local` | Tìm thiết bị, đặt theo khung ngày, khiếu nại, đánh giá |
+| Người thuê (Renter) | `linh@gearloop.local` | |
+| Người thuê (Renter) | `huy@gearloop.local` | |
 
 ### Thử luồng demo trong 1 phút (sau Sprint 2)
 
@@ -179,17 +182,17 @@ Catalog và cách validate đầu vào: [doc/backend-flows.md](./doc/backend-flo
 | Method | Đường dẫn | Vai trò | Trạng thái | Mô tả |
 | --- | --- | --- | --- | --- |
 | `GET` | `/api/health` | công khai | ✅ | Kiểm tra app + database |
-| `POST` | `/api/auth/register` | công khai | 🚧 S1 | Đăng ký buyer/seller |
+| `POST` | `/api/auth/register` | công khai | 🚧 S1 | Đăng ký Renter/Owner |
 | `POST` | `/api/auth/login` | công khai | 🚧 S1 | Đăng nhập, cấp cookie |
 | `POST` | `/api/auth/logout` | đã đăng nhập | 🚧 S1 | Xoá cookie |
 | `GET` | `/api/me` | đã đăng nhập | 🚧 S1 | Thông tin user hiện tại |
 | `GET/POST/PATCH` | `/api/admin/users*` | admin | 🚧 S1 | Quản lý user |
-| `GET/POST/PATCH` | `/api/items*` | seller | 🚧 S1 | CRUD thiết bị |
-| `GET` | `/api/items/available?from=&to=` | buyer | 🚧 S2 | Tìm thiết bị trống theo khung ngày |
-| `POST` | `/api/bookings` | buyer | 🚧 S2 | Đặt lịch (transaction: booking + lịch + cọc) |
-| `POST` | `/api/bookings/:id/approve` | seller | 🚧 S2 | Duyệt/từ chối |
-| `POST` | `/api/bookings/:id/pickup` · `/return` | seller | 🚧 S2 | Biên bản nhận/trả |
-| `POST` | `/api/claims*` | seller/buyer | 🚧 S3 | Khiếu nại hư hỏng |
+| `GET/POST/PATCH` | `/api/items*` | Owner | 🚧 S1 | CRUD thiết bị |
+| `GET` | `/api/items/available?from=&to=` | Renter | 🚧 S2 | Tìm thiết bị trống theo khung ngày |
+| `POST` | `/api/bookings` | Renter | 🚧 S2 | Đặt lịch (transaction: booking + lịch + cọc) |
+| `POST` | `/api/bookings/:id/approve` | Owner | 🚧 S2 | Duyệt/từ chối |
+| `POST` | `/api/bookings/:id/pickup` · `/return` | Owner | 🚧 S2 | Biên bản nhận/trả |
+| `POST` | `/api/claims*` | Owner/Renter | 🚧 S3 | Khiếu nại hư hỏng |
 | `POST` | `/api/admin/claims/:id/resolve` | admin | 🚧 S3 | Xét xử + trừ cọc |
 
 ```bash

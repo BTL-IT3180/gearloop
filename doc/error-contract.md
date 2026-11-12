@@ -63,7 +63,7 @@ mã pending. Có mã trong catalog không đồng nghĩa quy tắc đã được
 | ERR-USR-023 | Ràng buộc lý do xử lý chưa chốt |
 | ERR-USR-024 | Quy trình khóa user còn booking chưa chốt |
 
-Repo giữ ADMIN/SELLER/BUYER, khóa user bằng isActive. Mô tả B4 dùng
+Repo giữ ADMIN/OWNER/RENTER, khóa user bằng isActive. Mô tả B4 dùng
 CONFIRMED/REQUESTED phải đối chiếu APPROVED/DEPOSIT_HELD khi triển khai domain
 service. Task 5 không bổ sung chuyển trạng thái hay thay schema.
 

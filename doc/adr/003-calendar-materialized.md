@@ -35,5 +35,5 @@ data-model.md mục 4).
   không đổi startDate. Chỉ khóa FOR SHARE không đủ khi updater dùng snapshot
   REPEATABLE READ từ trước lúc lịch được thêm. Lỗi serialization phải retry
   toàn transaction ở tầng service khi luồng booking được triển khai.
-- Seller "chặn ngày bảo trì" = CRUD `kind = BLOCKED` — không logic đặc biệt.
+- Owner "chặn ngày bảo trì" = CRUD `kind = BLOCKED` — không logic đặc biệt.
 - Giới hạn 60 ngày nhìn thấy trước — mở rộng là một job chạy hằng ngày (không blocking).

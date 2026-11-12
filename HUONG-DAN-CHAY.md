@@ -65,10 +65,10 @@ npm run dev                   # http://localhost:3000
 | Email | Vai trò |
 |---|---|
 | `admin@gearloop.local` | Quản trị (Admin) |
-| `mai@gearloop.local` | Chủ thiết bị (Seller) |
-| `an@gearloop.local` | Người thuê (Buyer) |
+| `mai@gearloop.local` | Chủ thiết bị (Owner) |
+| `an@gearloop.local` | Người thuê (Renter) |
 
-*(Còn: `lan@` — seller; `linh@`, `huy@` — buyer.)*
+*(Còn: `lan@` — Owner; `linh@`, `huy@` — Renter.)*
 
 ## (Tuỳ chọn) Chạy test
 Cần PostgreSQL ở `localhost:55432` (bật bằng `docker compose up -d db`), rồi:

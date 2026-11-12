@@ -124,10 +124,10 @@ describe("response API", () => {
 
 describe("guard hiện có dùng catalog", () => {
   it("cho phép role phù hợp", () => {
-    expect(() => requireRole("SELLER", "ADMIN", "SELLER")).not.toThrow();
+    expect(() => requireRole("OWNER", "ADMIN", "OWNER")).not.toThrow();
   });
 
-  it.each([[undefined, "ERR-SYS-003", 401], ["BUYER", "ERR-USR-008", 403]] as const)(
+  it.each([[undefined, "ERR-SYS-003", 401], ["RENTER", "ERR-USR-008", 403]] as const)(
     "từ chối role %s", async (role, code, status) => {
       const route = withApi(async () => { requireRole(role, "ADMIN"); return null; });
       const response = await route(request("{}"), context());

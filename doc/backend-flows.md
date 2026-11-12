@@ -4,6 +4,9 @@ Trạng thái endpoint (✅ đã có · 🚧 kế hoạch sprint): xem bảng tr
 [README.md](../README.md#api). Tài liệu này mô tả **hợp đồng chung** và các
 luồng có logic phức tạp.
 
+Tên gọi **Owner** / **Renter** tương ứng role kỹ thuật `OWNER` / `RENTER`.
+Payload API và lời gọi `requireRole()` bên dưới dùng đúng giá trị enum hiện tại.
+
 ---
 
 ## 1. Hợp đồng phản hồi (mirror template)
@@ -36,7 +39,7 @@ Chi tiết catalog B4, schema dùng chung và các quyết định chờ review:
 ## 3. Xác thực (S1)
 
 ```
-POST /api/auth/register { email, password, fullName, role: BUYER|SELLER }
+POST /api/auth/register { email, password, fullName, role: RENTER|OWNER }
   → validate zod → check email unique (409 nếu trùng)
   → bcrypt.hashSync(password, 10) → INSERT users → set cookie JWT (httpOnly)
 POST /api/auth/login { email, password }
@@ -51,7 +54,7 @@ Lý do không dùng header demo như template: [ADR-002](./adr/002-auth.md).
 
 ```
 POST /api/bookings { itemId, startDate, endDate }
-  1. requireRole(BUYER), validate: endDate >= startDate, trong tương lai
+  1. requireRole(RENTER), validate: endDate >= startDate, trong tương lai
   2. Tính totalVnd từ rate_tiers (khoảng ngày áp tier nào) — snapshot
   3. Tính depositVnd = replacement_value_vnd × percent / 100 (≤ deposit_cap_percent)
   4. prisma.$transaction:
@@ -68,7 +71,7 @@ POST /api/bookings { itemId, startDate, endDate }
        f. INSERT AuditLog ("booking.create")
   5. Bất kỳ bước nào ném lỗi → rollback toàn bộ. Unique chỉ chặn dòng lịch
      trùng, không tự tạo SELECT FOR UPDATE và không chặn UPDATE ghi đè.
-  6. Seller duyệt: DEPOSIT_HELD → APPROVED; không ghi thêm DEPOSIT_HELD.
+  6. Owner duyệt: DEPOSIT_HELD → APPROVED; không ghi thêm DEPOSIT_HELD.
 ```
 
 ## 5. Nhả cọc tự động (S2)

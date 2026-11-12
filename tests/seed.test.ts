@@ -84,9 +84,9 @@ it.each(["audit-only", "booked-without-ledger", "ledger"])(
       expect(await db.booking.count()).toBe(0);
       expect(await db.depositLedger.count()).toBe(0);
     } else {
-      const buyer = await db.user.findFirstOrThrow({ where: { role: "BUYER" } });
+      const renter = await db.user.findFirstOrThrow({ where: { role: "RENTER" } });
       const day = await db.calendarDay.findFirstOrThrow({ where: { kind: "FREE" } });
-      const booking = await db.booking.create({ data: { itemId: day.itemId, buyerId: buyer.id,
+      const booking = await db.booking.create({ data: { itemId: day.itemId, renterId: renter.id,
         startDate: day.date, endDate: day.date, totalVnd: 1_000, depositVnd: 1_000 } });
       await db.calendarDay.update({ where: { id: day.id }, data: { kind: "BOOKED", bookingId: booking.id } });
       if (scenario === "ledger") {

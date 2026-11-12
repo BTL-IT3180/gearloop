@@ -1,8 +1,8 @@
 # Sprint 1 — "Walking Skeleton" (27/10 – 2/11)
 
-**Goal:** URL live từ ngày 3; seller đăng được tin, buyer nhìn thấy; CI chặn merge.
+**Goal:** URL live từ ngày 3; Owner đăng được tin, Renter nhìn thấy; CI chặn merge.
 **Exit gate:** `GET /api/health` = `{ok, db:up}` trên production URL; demo luồng
-"admin tạo seller → seller tạo item → item hiện trong danh sách".
+"admin tạo Owner → Owner tạo item → item hiện trong danh sách".
 
 Sizing: S ≈ 2–3h · M ≈ 1 ngày · L ≈ 2 ngày (đã gồm review).
 
@@ -20,7 +20,7 @@ Sizing: S ≈ 2–3h · M ≈ 1 ngày · L ≈ 2 ngày (đã gồm review).
 - [ ] `requireRole()` dùng được ở tầng service (API 403)
 
 ### GL-103 · Admin quản lý user (A · M)
-- [ ] Admin list/search users; tạo tài khoản Seller/Buyer
+- [ ] Admin list/search users; tạo tài khoản Owner/Renter
 - [ ] Deactivate → chặn đăng nhập
 - [ ] Mọi thao tác ghi `audit_logs`
 
@@ -31,9 +31,9 @@ Sizing: S ≈ 2–3h · M ≈ 1 ngày · L ≈ 2 ngày (đã gồm review).
 
 ### GL-105 · Admin CRUD category + checklist (B · M)
 - [ ] CRUD categories; thêm/bớt checklist item theo category
-- [ ] Checklist hiện đúng trong form đăng tin của seller
+- [ ] Checklist hiện đúng trong form đăng tin của Owner
 
-### GL-106 · Seller CRUD Item (B · L)
+### GL-106 · Owner CRUD Item (B · L)
 - [ ] Tạo/sửa/archive item (ảnh URL, tiers, % cọc, giá trị thay thế)
 - [ ] Item archived ẩn khỏi tìm kiếm; chỉ owner + admin sửa được
 

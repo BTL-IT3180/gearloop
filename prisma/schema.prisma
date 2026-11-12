@@ -15,8 +15,8 @@ datasource db {
 
 enum Role {
   ADMIN
-  SELLER
-  BUYER
+  OWNER
+  RENTER
 }
 
 enum ItemStatus {
@@ -77,7 +77,7 @@ model User {
   email        String    @unique
   passwordHash String // bcrypt — xem ADR-002
   fullName     String
-  role         Role      @default(BUYER)
+  role         Role      @default(RENTER)
   isActive     Boolean   @default(true)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -189,7 +189,7 @@ model CalendarDay {
 model Booking {
   id         Int           @id @default(autoincrement())
   itemId     Int
-  buyerId    Int
+  renterId   Int
   startDate  DateTime      @db.Date
   endDate    DateTime      @db.Date // ngày trả, inclusively tính phí
   status     BookingStatus @default(REQUESTED) // REQUESTED -> DEPOSIT_HELD -> APPROVED
@@ -200,7 +200,7 @@ model Booking {
   returnedAt DateTime? // DB ghi một lần khi chuyển RETURNED; không dùng updatedAt tính hạn claim.
 
   item            Item              @relation(fields: [itemId], references: [id])
-  buyer           User              @relation(fields: [buyerId], references: [id])
+  renter          User              @relation(fields: [renterId], references: [id])
   conditionReports ConditionReport[]
   ledgerEntries   DepositLedger[]
   claims          DamageClaim[]
@@ -208,7 +208,7 @@ model Booking {
   review          Review?
 
   @@unique([id, itemId]) // Đích khóa ngoại ghép của CalendarDay, không được trỏ khác thiết bị.
-  @@index([buyerId])
+  @@index([renterId])
   @@index([itemId, status])
 }
 

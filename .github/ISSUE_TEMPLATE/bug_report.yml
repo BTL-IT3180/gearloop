@@ -6,7 +6,7 @@ body:
     id: url
     attributes:
       label: URL + vai trò đang đăng nhập
-      placeholder: "https://.../items/1 — buyer an@gearloop.local"
+      placeholder: "https://.../items/1 — Renter an@gearloop.local"
     validations:
       required: true
   - type: textarea

@@ -79,7 +79,7 @@ async function seed(tx: Prisma.TransactionClient) {
       email: "mai@gearloop.local",
       passwordHash: hash,
       fullName: "Mai — máy ảnh",
-      role: "SELLER",
+      role: "OWNER",
     },
   });
   const lan = await tx.user.create({
@@ -87,7 +87,7 @@ async function seed(tx: Prisma.TransactionClient) {
       email: "lan@gearloop.local",
       passwordHash: hash,
       fullName: "Lan — đồ cắm trại",
-      role: "SELLER",
+      role: "OWNER",
     },
   });
   for (const [email, name] of [
@@ -96,7 +96,7 @@ async function seed(tx: Prisma.TransactionClient) {
     ["huy@gearloop.local", "Lê Văn Huy"],
   ] as const) {
     await tx.user.create({
-      data: { email, passwordHash: hash, fullName: name, role: "BUYER" },
+      data: { email, passwordHash: hash, fullName: name, role: "RENTER" },
     });
   }
 
@@ -253,7 +253,7 @@ async function seed(tx: Prisma.TransactionClient) {
   }
 
   console.log(
-    `\n✔ Seed xong: 6 users (1 admin, 2 sellers, 3 buyers), 3 categories, ` +
+    `\n✔ Seed xong: 6 users (1 admin, 2 owners, 3 renters), 3 categories, ` +
       `${items.length} items, ${dayCount} calendar days, 3 PolicySettings. ` +
       `Admin: ${admin.email} / demo123`,
   );

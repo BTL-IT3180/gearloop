@@ -7,7 +7,7 @@ body:
     attributes:
       label: Mục tiêu epic
       description: "Kết quả ĐO ĐƯỢC khi epic xong — gắn với goal của ít nhất 1 sprint"
-      placeholder: "Demo được: admin tạo seller → seller login → buyer bị 403 ở route sai vai trò"
+      placeholder: "Demo được: admin tạo Owner → Owner login → Renter bị 403 ở route sai vai trò"
     validations:
       required: true
   - type: textarea

@@ -6,7 +6,7 @@ body:
     id: role
     attributes:
       label: Vai trò
-      options: [Admin, Seller, Buyer, Hệ thống]
+      options: [Admin, Owner, Renter, Hệ thống]
     validations:
       required: true
   - type: textarea

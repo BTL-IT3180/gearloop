@@ -33,7 +33,7 @@ lượt sửa này. Dùng DEPOSIT_HELD thay HOLD cho cả trạng thái và lo�
 - Lịch liên kết đúng thiết bị và nằm trong khoảng ngày booking; sửa booking
   không được làm sai các ngày đã liên kết.
 - REQUESTED → DEPOSIT_HELD trong transaction tạo yêu cầu/giữ cọc;
-  Seller duyệt DEPOSIT_HELD → APPROVED, không ghi cọc lần hai.
+  Owner duyệt DEPOSIT_HELD → APPROVED, không ghi cọc lần hai.
   Đây là hợp đồng cho service tương lai, chưa phải state machine runtime.
 - Tiền ledger dương; số dư = DEPOSIT_HELD − RELEASE − DEDUCT − VOID.
 - eventKey ổn định khi retry; một sự kiện có thể có DEDUCT và RELEASE.
@@ -72,7 +72,7 @@ lượt sửa này. Dùng DEPOSIT_HELD thay HOLD cho cả trạng thái và lo�
 
 CalendarDay trước đây có thể trỏ sai thiết bị/ngày hoặc sai kind; ledger có thể
 ghi trùng và chi vượt cọc. Thêm ràng buộc DB, eventKey và serialize bút toán theo
-booking; thống nhất DEPOSIT_HELD và luồng giữ cọc trước khi Seller duyệt.
+booking; thống nhất DEPOSIT_HELD và luồng giữ cọc trước khi Owner duyệt.
 
 Validation: Prisma validate/generate, lint, typecheck, build; 37 test qua trên
 PostgreSQL 18 tạm. CI PostgreSQL 16 và nâng cấp DB có dữ liệu cần review riêng.
