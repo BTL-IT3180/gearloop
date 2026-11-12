@@ -25,7 +25,7 @@ Sizing: S ≈ 2–3h · M ≈ 1 ngày · L ≈ 2 ngày (đã gồm review).
 - [ ] Mọi thao tác ghi `audit_logs`
 
 ### GL-104 · Prisma schema v1 — 16 models (B · L · DB OWNER)
-- [ ] Full schema commit; ERD (`doc/data-model.md`) khớp 1:1
+- [ ] Full schema commit; ERD (`docs/architecture/database-design.md`) khớp 1:1
 - [ ] Migration đầu tiên tạo bằng `migrate dev` với tên rõ ràng
 - [ ] CI chuyển từ `db push` sang `migrate deploy`
 

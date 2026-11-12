@@ -24,9 +24,9 @@ Không tự ý đổi framework, package manager, dependency cốt lõi hoặc c
 
 Trước khi viết hoặc sửa code, AI agent PHẢI:
 
-1. Đọc `AGENTS.md` và phần liên quan trong `README.md`.
+1. Đọc `AGENTS.md`, các phần liên quan trong `README.md` và mục lục tài liệu `docs/README.md`.
 2. Đọc issue được giao, acceptance criteria (AC), yêu cầu nghiệp vụ (BR) và phạm vi công việc.
-3. Đọc `doc/data-model.md`, `doc/cicd.md` và các tài liệu trong `doc/adr/` liên quan trực tiếp đến task.
+3. Đọc `docs/architecture/database-design.md`, `docs/guides/development-workflow.md` và các tài liệu trong `docs/architecture/adrs/` liên quan trực tiếp đến task.
 4. Kiểm tra code, schema, API contract và test hiện có trước khi quyết định cách triển khai.
 5. Xác định những file cần sửa, lý do sửa và ảnh hưởng dự kiến trước khi code.
 
@@ -36,8 +36,8 @@ Không được tự chọn một phương án chỉ vì phương án đó phổ
 
 - Yêu cầu và acceptance criteria đã được nhóm phê duyệt xác định phạm vi của task.
 - ADR đã được phê duyệt xác định các quyết định kiến trúc.
-- `prisma/schema.prisma`, code hiện có và `doc/data-model.md` phải được đối chiếu khi xử lý dữ liệu, tên field, enum và quan hệ.
-- `doc/cicd.md` xác định quy trình Git, CI và PR của dự án.
+- `prisma/schema.prisma`, code hiện có và `docs/architecture/database-design.md` phải được đối chiếu khi xử lý dữ liệu, tên field, enum và quan hệ.
+- `docs/guides/development-workflow.md` xác định quy trình Git, CI và PR của dự án.
 - `AGENTS.md` quy định cách thực hiện công việc và các giới hạn bắt buộc.
 
 Nếu các nguồn mâu thuẫn hoặc chưa đủ thông tin, hãy nêu rõ điểm mâu thuẫn, nguồn liên quan và câu hỏi cần người phụ trách quyết định. Không tự bịa quy tắc nghiệp vụ, không âm thầm thay đổi kiến trúc và không triển khai dựa trên giả định chưa được xác nhận.
@@ -60,7 +60,7 @@ Route có nhiệm vụ thuần kỹ thuật, không chứa nghiệp vụ, có th
 
 Không tự ý chuyển từ kiến trúc API Routes sang Server Actions, không tạo thêm tầng kiến trúc mới và không di chuyển hàng loạt file chỉ để áp dụng một template khác.
 
-### Cấu trúc thư mục hiện tại
+### Cấu trúc thư mục dự án
 
 - `src/app/`: giao diện và API routes.
 - `src/server/services/`: nghiệp vụ và transaction.
@@ -72,8 +72,10 @@ Không tự ý chuyển từ kiến trúc API Routes sang Server Actions, không
 - `src/db/seed.ts`: dữ liệu mẫu.
 - `prisma/schema.prisma`: schema Prisma hiện tại.
 - `tests/`: kiểm thử.
-- `doc/`: tài liệu và ADR.
+- `docs/`: toàn bộ tài liệu dự án (mục lục tại `docs/README.md`, ADR tại `docs/architecture/adrs/`).
 - `.github/`: CI/CD, template và quy ước cộng tác.
+
+> Ghi chú hiện trạng: các tầng `services/`, `repositories/`, session middleware và `src/middleware.ts` đang được dựng dần theo sprint và **chưa đầy đủ trong repo** tại thời điểm 12/11/2026; hiện trạng triển khai xem `docs/architecture/system-overview.md`.
 
 Chỉ thay đổi cấu trúc trên khi có quyết định được phê duyệt.
 
@@ -122,7 +124,7 @@ Không tự bịa entity, field, enum, trạng thái, quy tắc cọc hoặc ch�
 - Không chỉnh sửa thủ công các file được sinh tự động.
 - Không thêm field, model, enum, index hoặc quan hệ nếu task chưa yêu cầu và chưa được phê duyệt.
 - Thay đổi schema phải được DB OWNER xem xét và merge theo quy trình của nhóm.
-- Khi schema thay đổi, phải xem xét migration, ảnh hưởng đến dữ liệu, code sử dụng schema và `doc/data-model.md`.
+- Khi schema thay đổi, phải xem xét migration, ảnh hưởng đến dữ liệu, code sử dụng schema và `docs/architecture/database-design.md`.
 - Không tự chạy lệnh reset hoặc xóa dữ liệu trên database dùng chung.
 - Không tự ý thay đổi quy trình migration hoặc seed.
 
@@ -178,7 +180,7 @@ Các lệnh kiểm tra chính:
 - `npm test`
 - `npm run build`
 
-Trước khi chạy, kiểm tra `package.json`, yêu cầu môi trường và hướng dẫn trong `doc/cicd.md`. Test phụ thuộc database phải có database và dữ liệu seed theo yêu cầu.
+Trước khi chạy, kiểm tra `package.json`, yêu cầu môi trường và hướng dẫn trong `docs/guides/development-workflow.md`. Test phụ thuộc database phải có database và dữ liệu seed theo yêu cầu.
 
 - Bổ sung hoặc cập nhật test cho hành vi mới và các trường hợp lỗi liên quan.
 - Với thay đổi phân quyền, kiểm tra cả trường hợp được phép và bị từ chối.
@@ -191,7 +193,7 @@ Trước khi chạy, kiểm tra `package.json`, yêu cầu môi trường và h�
 
 - Mỗi issue tương ứng một branch và một PR.
 - Không commit trực tiếp vào `main`.
-- Tuân thủ quy ước tên branch, commit, review và merge trong `doc/cicd.md`.
+- Tuân thủ quy ước tên branch, commit, review và merge trong `docs/guides/development-workflow.md`.
 - Mỗi PR chỉ nên giải quyết một vấn đề và có phạm vi nhỏ, mục tiêu khoảng không quá 300 dòng diff nếu phù hợp.
 - Chủ động tự review diff trước khi yêu cầu review.
 - Không tự review PR của chính mình; phải có review chéo theo quy ước nhóm.
@@ -207,7 +209,7 @@ Phân công hiện tại:
 | A | Auth/RBAC/users, CI/CD; `src/app/(auth)`, `src/server/middleware/`, `.github/` |
 | B | Domain, schema và repository; `prisma/`, `src/server/repositories/`, domain services |
 | C | Transaction và admin; booking/claim/ledger services, `src/app/(admin)` |
-| D | QA, seed và tài liệu; `tests/`, `src/db/`, `doc/` |
+| D | QA, seed và tài liệu; `tests/`, `src/db/`, `docs/` |
 
 Quy tắc:
 

@@ -23,7 +23,7 @@ mô hình hóa: **derived** (chỉ lưu booking, availability = anti-join query)
 `@@unique([itemId, date])`. Seed tạo sẵn 60 ngày `FREE` mỗi item. Đặt/huỷ chỉ
 **đổi `kind`** (khác template: họ INSERT/để dòng cancelled nằm lại nên cần
 partial index — GearLoop giữ dòng cố định nên unique thuần đủ, xem
-data-model.md mục 4).
+database-design.md mục 4).
 
 ## Hệ quả
 

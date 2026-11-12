@@ -1,6 +1,6 @@
 
 # GearLoop — Môi trường phát triển local (E0-F1-T2)
-# Yêu cầu: Docker Desktop, Node.js 22+, npm, Make (Git Bash).
+# Yêu cầu: Docker Desktop, Node.js 20+, npm, Make (Git Bash).
 #
 # Lần đầu:       make setup (khởi tạo DB và dữ liệu mẫu)
 # Hằng ngày:     make dev   (chạy ứng dụng, không xóa dữ liệu)

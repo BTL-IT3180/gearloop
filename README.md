@@ -6,7 +6,7 @@ ngày rõ ràng, một khoản cọc có sổ sách và một cặp biên bản 
 
 > ⚠️ **Đây là sản phẩm học tập phục vụ demo, không phải production.** Mật khẩu
 > demo chung cho mọi tài khoản, chưa có cổng thanh toán thật (tiền cọc là sổ
-> ghi nội bộ). Quyết định thiết kế nằm trong [doc/adr/](./doc/adr/).
+> ghi nội bộ). Quyết định thiết kế nằm trong [docs/architecture/adrs/](./docs/architecture/adrs/).
 
 ---
 
@@ -89,7 +89,7 @@ lịch bị đặt chồng (các sàn thuê lớn phải khuyến cáo chủ đ�
 bị tính tiền hư hỏng không có căn cứ. **Chủ thiết bị** chỉ dám cho thuê khi
 có cọc giữ trước, biên bản tình trạng làm chứng cứ, và lịch chặn chồng ở tầng
 database. GearLoop giải quyết cả hai bằng cơ chế CRUD thuần túy — không AI.
-Chi tiết nghiệp vụ: [doc/prod.md](./doc/prod.md).
+Chi tiết nghiệp vụ: [docs/requirements/business-rules.md](./docs/requirements/business-rules.md).
 
 ## Lộ trình 6 tuần (Scrum)
 
@@ -102,7 +102,7 @@ Chi tiết nghiệp vụ: [doc/prod.md](./doc/prod.md).
 | S5 (24–30/11) | Harden & docs | Seed demo, test case trắng/đen hộp |
 | S6 (1–7/12) | Freeze & demo | Đóng băng tính năng, thuyết trình |
 
-Chi tiết: [doc/sprints/ROADMAP.md](./doc/sprints/ROADMAP.md).
+Chi tiết: [docs/planning/sprints/ROADMAP.md](./docs/planning/sprints/ROADMAP.md).
 
 ---
 
@@ -123,7 +123,8 @@ Trình duyệt (Next.js App Router)
 
 Nguyên tắc mirror từ template MedBook: **mỗi tầng chỉ gọi tầng ngay dưới nó**.
 Route nhận request, Service giữ nghiệp vụ + transaction, Repository giữ toàn
-bộ query. Hợp đồng từng tầng: [doc/adr/006-layered-architecture.md](./doc/adr/006-layered-architecture.md).
+bộ query. Hợp đồng từng tầng:
+[docs/architecture/adrs/006-layered-architecture.md](./docs/architecture/adrs/006-layered-architecture.md).
 
 ### Cấu trúc thư mục
 
@@ -132,9 +133,9 @@ bộ query. Hợp đồng từng tầng: [doc/adr/006-layered-architecture.md](.
 ├── src/
 │   ├── app/                   giao diện + api/ (route handlers — tầng HTTP)
 │   ├── server/
-│   │   ├── services/          nghiệp vụ, transaction
-│   │   ├── repositories/      toàn bộ query Prisma
-│   │   ├── middleware/        requireRole (RBAC), session
+│   │   ├── services/          (kế hoạch) nghiệp vụ, transaction
+│   │   ├── repositories/      (kế hoạch) toàn bộ query Prisma
+│   │   ├── middleware/        requireRole (RBAC 3 vai trò)
 │   │   ├── utils/             zod schemas
 │   │   ├── api/withApi.ts     gói { data } / bắt AppError → { error }
 │   │   ├── errors.ts
@@ -143,17 +144,23 @@ bộ query. Hợp đồng từng tầng: [doc/adr/006-layered-architecture.md](.
 ├── prisma/schema.prisma       NGUỒN SỰ THẬT schema (16 models)
 ├── tests/                     vitest — cần database đang chạy
 ├── e2e/                       playwright — smoke test trình duyệt
-├── doc/                       tài liệu kỹ thuật + adr/
+├── docs/                      tài liệu kỹ thuật (mục lục: docs/README.md)
 ├── AGENTS.md                  luật cho AI agent + người code
 ├── Dockerfile · docker-compose.yml
 └── .github/                   CI + issue/PR templates
 ```
 
+> Trung thực về hiện trạng: `services/`, `repositories/` (đánh dấu *kế hoạch*
+> ở trên), `src/middleware.ts` và session là thiết kế đích của kiến trúc phân
+> tầng [ADR-006](./docs/architecture/adrs/006-layered-architecture.md) —
+> **chưa tồn tại** trong repo hiện tại. Hiện trạng thật của code:
+> [docs/architecture/system-overview.md](./docs/architecture/system-overview.md).
+
 ### Công nghệ
 
 Next.js 15 · TypeScript strict · PostgreSQL 16 · Prisma · Tailwind v4 ·
 bcrypt + JWT cookie · Docker Compose · GitHub Actions · Vitest.
-Lý do từng lựa chọn nằm trong [doc/adr/](./doc/adr/).
+Lý do từng lựa chọn nằm trong [docs/architecture/adrs/](./docs/architecture/adrs/).
 
 ---
 
@@ -169,15 +176,16 @@ Một (thiết bị, ngày) có đúng một dòng CalendarDay nhờ `UNIQUE(ite
 Chống đặt chồng còn cần UPDATE có điều kiện FREE, kiểm tra đủ số ngày và rollback
 trong transaction; unique không ngăn ghi đè cùng dòng. Migration bổ sung các
 ràng buộc lịch/booking và sổ cọc ở DB.
-Chi tiết: [doc/data-model.md](./doc/data-model.md).
+Chi tiết: [docs/architecture/database-design.md](./docs/architecture/database-design.md).
 
 ---
 
 ## API
 
 Mọi endpoint trả JSON. Thành công → `{ "data": ... }`, thất bại →
-`{ "error": "...", "code": "ERR-USR-xxx hoặc ERR-SYS-xxx" }`.
-Catalog và cách validate đầu vào: [doc/backend-flows.md](./doc/backend-flows.md).
+`{ "error": "...", "code": "ERR-USR-xxx hoặc ERR-SYS-xxx" }`. Bảng đầy đủ,
+luồng xử lý từng endpoint và catalog lỗi:
+[docs/architecture/api-contract.md](./docs/architecture/api-contract.md).
 
 | Method | Đường dẫn | Vai trò | Trạng thái | Mô tả |
 | --- | --- | --- | --- | --- |
@@ -214,12 +222,12 @@ npm run db:seed               # nạp dữ liệu mẫu
 npm run dev                   # http://localhost:3000
 ```
 
-DB đã có schema/dữ liệu từ `db push` cần DB OWNER chuẩn bị baseline/upgrade;
-không reset hoặc chạy migration đầu tiên trực tiếp. Xem `doc/cicd.md` mục 2.1.
-Seed kiểm tra booking/ledger/audit trước khi wipe: nếu có dữ liệu thì bỏ qua,
-exit 0 để Docker tiếp tục chạy app. Nếu cả ba bảng trống, dữ liệu mẫu được tạo
-lại trong một transaction; lỗi giữa chừng rollback toàn bộ. Không dùng seed để
-reset dữ liệu nghiệp vụ; reset DB local cần thao tác riêng có chủ đích.
+DB đã có schema/dữ liệu từ `db push` cần DB OWNER chuẩn bị baseline/upgrade —
+không reset hay chạy migration đầu tiên trực tiếp: xem mục **Quy tắc đồng bộ
+database** trong
+[docs/guides/development-workflow.md](./docs/guides/development-workflow.md).
+Seed idempotent (bỏ qua nếu đã có dữ liệu nghiệp vụ). Cài đặt chi tiết và
+khắc phục sự cố: [docs/guides/setup.md](./docs/guides/setup.md).
 
 Biến môi trường (xem `.env.example`):
 
@@ -241,9 +249,9 @@ npm run db:reset     # xoá sạch + migrate + seed lại
 ```
 
 Các test tích hợp trong `npm test` truy vấn PostgreSQL thật — không mock.
-Chi tiết phạm vi:
-[doc/regression-testing.md](./doc/regression-testing.md). E2E cần cài browser
-Chromium một lần bằng `npx playwright install chromium`.
+Phạm vi và chiến lược kiểm thử:
+[docs/testing/test-strategy.md](./docs/testing/test-strategy.md). E2E cần cài
+browser Chromium một lần bằng `npx playwright install chromium`.
 
 ---
 
@@ -252,19 +260,23 @@ Chromium một lần bằng `npx playwright install chromium`.
 | Triệu chứng | Cách xử lý |
 | --- | --- |
 | Cổng 4300/55432 bị chiếm | Sửa vế trái trong `docker-compose.yml` rồi chạy lại |
-| `PrismaClient` báo chưa generate | `npx prisma generate` |
+| `PrismaClient`/type lỗi sau khi đổi schema | `npx prisma generate` (restart dev server nếu cần) |
 | Test báo không nối được DB | Bật `docker compose up -d db`, kiểm tra `DATABASE_URL` |
-| Đổi schema nhưng code lỗi type | `npx prisma generate` rồi restart dev server |
+
+Danh sách sự cố đầy đủ: [docs/guides/setup.md](./docs/guides/setup.md).
 
 ---
 
 ## Tài liệu kỹ thuật
 
-- [doc/data-model.md](./doc/data-model.md) — ERD, từ điển dữ liệu, máy trạng thái booking
-- [doc/backend-flows.md](./doc/backend-flows.md) — hợp đồng API, luồng xử lý, bảng lỗi
-- [doc/prod.md](./doc/prod.md) — phạm vi sản phẩm, quy tắc nghiệp vụ, phi phạm vi
-- [doc/cicd.md](./doc/cicd.md) — branching, CI/CD, môi trường deploy
-- [doc/regression-testing.md](./doc/regression-testing.md) — chiến lược kiểm thử
-- [doc/adr/](./doc/adr/) — lý do đằng sau các quyết định thiết kế
-- [doc/sprints/](./doc/sprints/) — lộ trình Scrum 6 tuần
+Toàn bộ tài liệu nằm trong `docs/`. Điểm vào chính là
+[docs/README.md](./docs/README.md) — mục lục đầy đủ và quy tắc cập nhật.
+
+| Nhóm | Nội dung |
+| --- | --- |
+| [Yêu cầu sản phẩm](./docs/requirements/product-overview.md) | Phạm vi, vai trò, quy tắc nghiệp vụ, yêu cầu chức năng, mô hình nghiệp vụ |
+| [Kiến trúc](./docs/architecture/system-overview.md) | Hiện trạng hệ thống, thiết kế CSDL, hợp đồng API, [ADR](./docs/architecture/adrs/README.md) |
+| [Kế hoạch & user stories](./docs/planning/gearloop_project_plan.md) | Kế hoạch dự án, [backlog](./docs/planning/backlog.md), [lộ trình sprint](./docs/planning/sprints/ROADMAP.md), [13 user stories](./docs/user-stories/README.md) |
+| [Hướng dẫn & kiểm thử](./docs/guides/setup.md) | Cài đặt chạy máy, [quy trình phát triển](./docs/guides/development-workflow.md), [chiến lược kiểm thử](./docs/testing/test-strategy.md), [bộ test case](./docs/testing/test-cases.md) |
+
 - [AGENTS.md](./AGENTS.md) — quy ước code cho người + AI agent

@@ -11,7 +11,7 @@ migration đầu tiên, bỏ migration rename riêng.
 - `prisma/migrations/20261101000000_booking_calendar_ledger_integrity/migration.sql`:
   tạo enum/default mới, cột renterId cùng FK/index ngay từ đầu.
 - Bỏ migration rename; hai migration bổ sung bảo vệ lịch sử dữ liệu giữ nguyên.
-- `doc/data-model.md`, `doc/cicd.md`, ADR-007: cập nhật cách tạo DB mới và tác động
+- `docs/architecture/database-design.md`, `docs/guides/development-workflow.md`, ADR-007: cập nhật cách tạo DB mới và tác động
   tới DB đã áp dụng migration cũ. Schema, seed và code đã dùng tên mới từ lượt trước.
 
 ## Kiểm thử
@@ -34,7 +34,7 @@ migration đầu tiên, bỏ migration rename riêng.
   DB mới có 1 ADMIN, 2 OWNER, 3 RENTER, 4 item, 240 ngày lịch; booking/ledger/audit
   đều rỗng. Booking chỉ có renterId. DB cloud, DB test và volume không bị xóa.
 - Lịch sử mới không tự nâng cấp DB ở máy khác đã chạy migration cũ; các DB đó cần
-  người phụ trách quyết định tạo lại hoặc chuyển đổi riêng theo `doc/cicd.md`.
+  người phụ trách quyết định tạo lại hoặc chuyển đổi riêng theo `docs/guides/development-workflow.md`.
 - Chưa xác minh CI remote; thay đổi history cần DB OWNER review trước merge.
 - Cách chạy cho DB mới/trống: `npm run db:deploy`, `npx prisma generate`.
-  DB đã áp dụng lịch sử cũ phải xử lý trước theo `doc/cicd.md`, không chỉ deploy lại.
+  DB đã áp dụng lịch sử cũ phải xử lý trước theo `docs/guides/development-workflow.md`, không chỉ deploy lại.

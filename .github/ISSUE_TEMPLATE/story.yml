@@ -28,7 +28,7 @@ body:
     id: entities
     attributes:
       label: Entities / files dự kiến chạm
-      description: "Từ doc/data-model.md. Agent chạm file khác → từ chối PR."
+      description: "Từ docs/architecture/database-design.md. Agent chạm file khác → từ chối PR."
     validations:
       required: true
   - type: dropdown
