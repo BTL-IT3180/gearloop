@@ -55,21 +55,29 @@ là mapping tích hợp sẵn của catalog.
 | `409` | Vi phạm trạng thái / trùng dữ liệu / tương tranh | ERR-USR-001; ERR-SYS-002 |
 | `500` | Lỗi chưa phân loại | ERR-SYS-001 |
 
-## 3. Xác thực (S1)
+## 3. Xác thực (S1 — đã triển khai)
 
 ```
-POST /api/auth/register { email, password, fullName, role: RENTER|OWNER }
-  → validate zod → check email unique (409 nếu trùng)
-  → bcrypt.hashSync(password, 10) → INSERT users → set cookie JWT (httpOnly)
-POST /api/auth/login { email, password }
-  → SELECT user → bcrypt.compare → sai → 401 ERR-USR-010 "Thông tin đăng nhập không đúng."
-  → đúng → set cookie (payload: { sub, role }, exp 7 ngày)
+GET /login
+  → chưa đăng nhập: hiển thị login form; đã đăng nhập: redirect /
+loginAction (Server Action) { email, password }
+  → validate loginSchema → Auth.js Credentials → SELECT user → bcrypt.compare
+  → sai / không tồn tại → cùng thông điệp ERR-USR-010
+  → đúng → Auth.js tạo JWT session cookie; role được nạp lại từ DB
+logoutAction (Server Action)
+  → Auth.js signOut → xóa session cookie
 ```
 
-Cookie: `httpOnly; SameSite=Lax; Secure (production)`. Không localStorage.
-Lý do không dùng header demo như template: [ADR-002](./adrs/002-auth.md).
-Route login tương lai gọi `parseJsonInput(req, loginSchema, "ERR-USR-010")`
-(xem mục 9), rồi chuyển kết quả sang service auth.
+Cookie: `httpOnly; SameSite=Lax; Secure (production)`, session tối đa 7 ngày.
+Role không lấy từ form hoặc dữ liệu do client gửi; Auth.js kiểm tra lại user
+đang hoạt động và role từ PostgreSQL. Không lưu `passwordHash` vào session.
+Auth.js handlers được wire tại `/api/auth/[...nextauth]`; không có API route
+riêng cho login/logout. Chi tiết quyết định: [ADR-002](./adrs/002-auth.md).
+
+**Discrepancy cần xác nhận:** implementation hiện cũng trả lỗi chung
+`ERR-USR-010` cho user không hoạt động; canonical US-013/BR-013-01 yêu cầu
+`ERR-USR-011` cho tài khoản bị khóa. Không tự đổi yêu cầu hoặc hành vi ngoài
+phạm vi task; cần người phụ trách sản phẩm chốt cách xử lý.
 
 ## 4. Đặt lịch (S2) — luồng nhiều bước nhất
 
@@ -143,15 +151,17 @@ xem mục 7 và [ADR-004](./adrs/004-deposit-ledger.md).
 ## 8. Bảng trạng thái endpoint
 
 Bảng tổng hợp từ README.md mục API và các luồng ở trên; tài liệu này là nơi
-sở hữu bảng. Hiện trạng kiểm tra 12/11/2026: chỉ `GET /api/health` đã có trong
-`src/app/api/`; các dòng 🚧 là kế hoạch sprint, chưa tồn tại trong repo.
+sở hữu bảng. Các dòng ✅ đã được kiểm tra trong repo; các dòng 🚧 là kế hoạch
+sprint, chưa tồn tại.
 
 | Method | Đường dẫn | Vai trò | Trạng thái | Mô tả |
 | --- | --- | --- | --- | --- |
 | `GET` | `/api/health` | công khai | ✅ | Kiểm tra app + database |
+| `GET/POST` | `/api/auth/[...nextauth]` | công khai | ✅ | Auth.js handlers |
+| `GET` | `/login` | công khai | ✅ | Trang đăng nhập |
+| Server Action | `loginAction` | công khai | ✅ | Đăng nhập Credentials, lỗi chung ERR-USR-010 |
+| Server Action | `logoutAction` | đã đăng nhập | ✅ | Đăng xuất, xóa session |
 | `POST` | `/api/auth/register` | công khai | 🚧 S1 | Đăng ký Renter/Owner |
-| `POST` | `/api/auth/login` | công khai | 🚧 S1 | Đăng nhập, cấp cookie |
-| `POST` | `/api/auth/logout` | đã đăng nhập | 🚧 S1 | Xoá cookie |
 | `GET` | `/api/me` | đã đăng nhập | 🚧 S1 | Thông tin user hiện tại |
 | `GET/POST/PATCH` | `/api/admin/users*` | admin | 🚧 S1 | Quản lý user |
 | `GET/POST/PATCH` | `/api/items*` | Owner | 🚧 S1 | CRUD thiết bị |

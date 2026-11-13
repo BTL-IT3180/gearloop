@@ -132,6 +132,8 @@ bộ query. Hợp đồng từng tầng:
 .
 ├── src/
 │   ├── app/                   giao diện + api/ (route handlers — tầng HTTP)
+│   ├── features/auth/         Auth.js Credentials, form và actions
+│   ├── lib/auth.ts            helper đọc user/session phía server
 │   ├── server/
 │   │   ├── services/          (kế hoạch) nghiệp vụ, transaction
 │   │   ├── repositories/      (kế hoạch) toàn bộ query Prisma
@@ -151,15 +153,16 @@ bộ query. Hợp đồng từng tầng:
 ```
 
 > Trung thực về hiện trạng: `services/`, `repositories/` (đánh dấu *kế hoạch*
-> ở trên), `src/middleware.ts` và session là thiết kế đích của kiến trúc phân
-> tầng [ADR-006](./docs/architecture/adrs/006-layered-architecture.md) —
-> **chưa tồn tại** trong repo hiện tại. Hiện trạng thật của code:
+> ở trên) và `src/middleware.ts` là thiết kế đích của kiến trúc phân tầng
+> [ADR-006](./docs/architecture/adrs/006-layered-architecture.md) — **chưa tồn
+> tại** trong repo. Auth.js session/helper đã có; các guard domain còn triển khai
+> theo từng endpoint. Hiện trạng thật của code:
 > [docs/architecture/system-overview.md](./docs/architecture/system-overview.md).
 
 ### Công nghệ
 
 Next.js 15 · TypeScript strict · PostgreSQL 16 · Prisma · Tailwind v4 ·
-bcrypt + JWT cookie · Docker Compose · GitHub Actions · Vitest.
+Auth.js Credentials + bcrypt · JWT session cookie · Docker Compose · GitHub Actions · Vitest.
 Lý do từng lựa chọn nằm trong [docs/architecture/adrs/](./docs/architecture/adrs/).
 
 ---
@@ -190,9 +193,10 @@ luồng xử lý từng endpoint và catalog lỗi:
 | Method | Đường dẫn | Vai trò | Trạng thái | Mô tả |
 | --- | --- | --- | --- | --- |
 | `GET` | `/api/health` | công khai | ✅ | Kiểm tra app + database |
-| `POST` | `/api/auth/register` | công khai | 🚧 S1 | Đăng ký Renter/Owner |
-| `POST` | `/api/auth/login` | công khai | 🚧 S1 | Đăng nhập, cấp cookie |
-| `POST` | `/api/auth/logout` | đã đăng nhập | 🚧 S1 | Xoá cookie |
+| `GET/POST` | `/api/auth/[...nextauth]` | công khai | ✅ | Auth.js handlers |
+| `GET` | `/login` | công khai | ✅ | Đăng nhập bằng email/mật khẩu |
+| Server Action | `logoutAction` | đã đăng nhập | ✅ | Đăng xuất, xóa session |
+| `POST` | `/api/auth/register` | công khai | 🚧 | Đăng ký (ngoài task này) |
 | `GET` | `/api/me` | đã đăng nhập | 🚧 S1 | Thông tin user hiện tại |
 | `GET/POST/PATCH` | `/api/admin/users*` | admin | 🚧 S1 | Quản lý user |
 | `GET/POST/PATCH` | `/api/items*` | Owner | 🚧 S1 | CRUD thiết bị |
@@ -234,7 +238,7 @@ Biến môi trường (xem `.env.example`):
 | Biến | Mặc định | Ý nghĩa |
 | --- | --- | --- |
 | `DATABASE_URL` | `postgres://gearloop:gearloop@localhost:55432/gearloop` | Chuỗi kết nối PostgreSQL |
-| `AUTH_SECRET` | — | Secret ký session cookie (≥32 ký tự) |
+| `AUTH_SECRET` | — | Secret Auth.js mã hóa session cookie (≥32 ký tự) |
 
 ---
 
@@ -243,15 +247,15 @@ Biến môi trường (xem `.env.example`):
 ```bash
 npm run lint         # ESLint
 npm run typecheck    # tsc --noEmit
-npm test             # vitest — CẦN database đang chạy và đã seed
-npm run test:e2e     # playwright Chromium — tự khởi động Next.js
+npm test             # Vitest — cần DATABASE_URL trỏ tới gearloop_test đã migrate + seed
+npm run test:e2e     # Playwright — cần DB gearloop_test đã migrate + seed
 npm run db:reset     # xoá sạch + migrate + seed lại
 ```
 
-Các test tích hợp trong `npm test` truy vấn PostgreSQL thật — không mock.
-Phạm vi và chiến lược kiểm thử:
-[docs/testing/test-strategy.md](./docs/testing/test-strategy.md). E2E cần cài
-browser Chromium một lần bằng `npx playwright install chromium`.
+Để chuẩn bị database test local và chạy Vitest, xem [docs/guides/setup.md](./docs/guides/setup.md#7-chay-kiem-thu).
+Vitest và E2E đều truy vấn PostgreSQL thật — không mock. E2E tự khởi động
+Next.js và cần cài browser Chromium một lần bằng `npx playwright install chromium`.
+Phạm vi và chiến lược kiểm thử: [docs/testing/test-strategy.md](./docs/testing/test-strategy.md).
 
 ---
 

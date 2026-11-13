@@ -53,8 +53,10 @@ tách bạch dựa trên cây `src/` thực tế.
 
 | File thực tế | Vai trò |
 | --- | --- |
-| `src/app/api/health/route.ts` | Endpoint API duy nhất hiện có: kiểm app + database |
-| `src/app/layout.tsx`, `src/app/page.tsx`, `src/app/globals.css` | Khung giao diện Next.js App Router |
+| `src/app/api/health/route.ts`, `src/app/api/auth/[...nextauth]/route.ts` | Health check và Auth.js handlers |
+| `src/app/(auth)/login/page.tsx`, `src/app/layout.tsx`, `src/app/page.tsx`, `src/app/globals.css` | Trang đăng nhập và giao diện Next.js App Router |
+| `src/features/auth/` | Auth.js Credentials, xác thực bcrypt và login/logout actions |
+| `src/lib/auth.ts` | Helper server đọc user và role từ session |
 | `src/server/api/withApi.ts` | Gói thành công `{ data }`, bắt `AppError` → `{ error, code }` |
 | `src/server/errors.ts` | Lớp `AppError`: mã lỗi + HTTP status lấy từ catalog |
 | `src/server/middleware/requireRole.ts` | Guard RBAC gọi tay ở đầu service/route |
@@ -73,10 +75,10 @@ Nền kèm theo: `prisma/schema.prisma` (nguồn sự thật 16 model) + 3 migra
 | Thành phần kế hoạch | Vị trí dự kiến | Trạng thái |
 | --- | --- | --- |
 | Tầng services | `src/server/services/` | Chưa có thư mục/file nào — nghiệp vụ booking/claim chưa triển khai |
-| Tầng repositories | `src/server/repositories/` | Chưa có thư mục/file nào — chưa có query Prisma nào ngoài seed |
+| Tầng repositories | `src/server/repositories/` | Chưa có thư mục/file nào; các query Auth hiện nằm trong feature, chưa có query domain nào ngoài seed |
 | Guard UI (lớp 1 của RBAC) | `src/middleware.ts` | Chưa có (xem ADR-007 và mục 5) |
-| Đọc phiên đăng nhập từ cookie JWT | `src/server/middleware/` (module session) | Chưa có; mã lỗi phiên `ERR-SYS-003` đã định nghĩa sẵn trong `src/server/errors.ts` |
-| Các endpoint còn lại | `src/app/api/auth/**`, `items`, `bookings`, `claims`, … | Chỉ `/api/health` tồn tại; trạng thái từng endpoint xem [api-contract.md](./api-contract.md) |
+| Đọc và kiểm tra phiên đăng nhập | Auth.js `auth()` qua `src/lib/auth.ts` | Đã có; các guard domain còn triển khai theo từng endpoint |
+| Các endpoint domain | `src/app/api/items`, `bookings`, `claims`, … | Chưa có; trạng thái từng endpoint xem [api-contract.md](./api-contract.md) |
 
 Việc thiếu services/repositories là đúng thứ tự triển khai: khung hạ tầng
 (envelope, AppError, guard, validation, Prisma client) đã dựng xong trước,
@@ -112,8 +114,8 @@ nghiệp vụ: [api-contract.md](./api-contract.md).
   API (403). Nguyên tắc: **UI guard không bao giờ là lớp bảo vệ duy nhất**.
 - Ma trận quyền (ngắn): Owner chỉ đụng item/booking của mình; Renter chỉ booking
   của mình; Admin toàn quyền đọc + quyền xét xử (claim, khóa), mọi thao tác ghi
-  của Admin vào `audit_logs`. Cơ chế đăng nhập: bcrypt + JWT httpOnly cookie,
-  không dùng demo header — xem [ADR-002](./adrs/002-auth.md).
+  của Admin vào `audit_logs`. Cơ chế đăng nhập hiện dùng Auth.js Credentials,
+  bcrypt và JWT session cookie httpOnly — xem [ADR-002](./adrs/002-auth.md).
 
 ## 6. Tầng dữ liệu
 
@@ -156,7 +158,7 @@ Theo mục 3 của tài liệu CI/CD trước đợt tái cấu trúc (`cicd.md`
 | Kiến trúc 3 tầng Route/Service/Repository | Tách nghiệp vụ khỏi kỹ thuật, test theo tầng | [ADR-006](./adrs/006-layered-architecture.md) |
 | PostgreSQL 16 | Khung ngày, ràng buộc lịch/cọc ở DB | [database-design.md](./database-design.md) |
 | Prisma + migrate | Schema là một nguồn sự thật duy nhất | [ADR-005](./adrs/005-prisma-migrations.md) |
-| bcryptjs + JWT (thư viện `jose`) trong cookie httpOnly | Session thật cho RBAC | [ADR-002](./adrs/002-auth.md) |
+| Auth.js Credentials + bcrypt + JWT session cookie httpOnly | Session thật cho RBAC | [ADR-002](./adrs/002-auth.md) |
 | Tailwind v4 | Giao diện | [ADR-001](./adrs/001-nextjs-typescript.md) |
 | Vitest + Playwright | Test tích hợp PostgreSQL thật + smoke trình duyệt | [../testing/test-strategy.md](../testing/test-strategy.md) |
 | Docker Compose, GitHub Actions | Đóng gói và CI | [../guides/development-workflow.md](../guides/development-workflow.md) |
