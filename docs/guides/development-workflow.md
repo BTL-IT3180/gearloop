@@ -87,7 +87,7 @@ Workflow `CI` kích hoạt trên mọi `pull_request` và `push` vào `main`; c�
 - Seed guard: trước khi wipe, seed kiểm tra `Booking`/`DepositLedger`/`AuditLog`; còn dữ liệu ở bất kỳ bảng nào thì bỏ qua và exit 0 để Docker tiếp tục chạy app; không xóa hoặc vô hiệu trigger append-only của ledger/audit. Nếu cả ba bảng trống, wipe và nạp mẫu chạy trong transaction SERIALIZABLE; lỗi thật rollback toàn bộ và exit 1; `CalendarDay` được xoá trước `Booking`. Seed vẫn tái tạo tài khoản/danh mục/tin mẫu khi chưa có dữ liệu nghiệp vụ; không dùng seed để reset dữ liệu giao dịch.
 - Backfill thời điểm trả chỉ từ biên bản RETURN; booking `RETURNED` thiếu chứng cứ bị chặn, cần DB OWNER xử lý. Migration bổ sung FK user dùng RESTRICT: không hard-delete user có lịch sử, dùng `isActive` để khóa/mở tài khoản.
 - Không tự ý sửa schema, tạo migration hoặc thay đổi quy trình database ngoài phạm vi issue được giao và quyền hạn được phân công.
-- Reset database local (khi được phép mất dữ liệu): `npm run db:reset` — xoá sạch dữ liệu, chạy lại toàn bộ migration và nạp dữ liệu mẫu (`prisma migrate reset --force` + `npm run db:seed`).
+- Reset database local (khi được phép mất dữ liệu): `npm run db:reset` — xoá sạch dữ liệu, chạy lại toàn bộ migration và nạp dữ liệu mẫu (`prisma migrate reset --force --skip-seed` trong guard + seed chạy tường minh một lần). Script kiểm tra `DATABASE_URL` và từ chối chạy nếu không trỏ tới database local.
 
 ## 8. Secrets và bảo mật
 
@@ -112,7 +112,7 @@ Workflow `CI` kích hoạt trên mọi `pull_request` và `push` vào `main`; c�
 | `npm run typecheck` | `tsc --noEmit` | Không cần DB |
 | `npm test` | Vitest — test tích hợp dùng PostgreSQL thật, không mock | DB test đang chạy, đã migrate + seed (chuẩn bị: [setup.md](setup.md), phạm vi: [../testing/test-strategy.md](../testing/test-strategy.md)) |
 | `npm run build` | `next build` | Không cần DB |
-| `npm run db:reset` | Xoá sạch + migrate + seed lại | Chỉ database local, mất dữ liệu |
+| `npm run db:reset` | Xoá sạch + migrate + seed lại | Chỉ database local, mất dữ liệu — script từ chối `DATABASE_URL` không phải local |
 
 Ghi rõ lệnh nào đã chạy, kết quả thực tế và những kiểm tra chưa thể thực hiện; không đánh dấu xanh checklist khi chưa chạy. Mẫu PR `.github/PULL_REQUEST_TEMPLATE.md` mục 3 liệt kê đúng bốn lệnh chính (`lint`, `typecheck`, `npm test`, `build`) — mỗi PR cần hoàn thành checklist trong [mẫu PR của repo](../../.github/PULL_REQUEST_TEMPLATE.md).
 
