@@ -58,12 +58,13 @@ Workflow `CI` kích hoạt trên mọi `pull_request` và `push` vào `main`; c�
 
 | Job | Môi trường | Các bước | Chặn merge |
 | --- | --- | --- | --- |
-| `unit` | ubuntu-latest, Node 20 (cache npm), service container PostgreSQL 16 với db `gearloop_test` cổng 5432; env `NODE_ENV=test`, `DATABASE_URL`, `AUTH_SECRET` giá trị CI | checkout → `npm ci` → `npx prisma generate` → `npm run lint` → `npx prisma migrate deploy` + `npm run db:seed` → `npm run build` → `npm run typecheck` → `npm test` | Có |
-| `e2e` | ubuntu-latest, Node 20 (cache npm) | checkout → `npm ci` → `npx playwright install chromium` → `npm run test:e2e` | Có |
-| `verify` | ubuntu-latest, `if: always()`, `needs: [unit, e2e]` | Chỉ thành công khi cả hai job trên kết thúc với kết quả `success` | Có — làm status check bắt buộc trên PR |
+| `unit` | ubuntu-24.04 (ghim), Node 20 (cache npm), service container PostgreSQL 16 với db `gearloop_test` cổng 5432; env `NODE_ENV=test`, `DATABASE_URL`, `AUTH_SECRET` giá trị CI | checkout → `npm ci` → `npx prisma generate` → `npm run lint` → `npx prisma migrate deploy` + `npm run db:seed` → `npm run build` → `npm run typecheck` → `npm test` | Có |
+| `e2e` | ubuntu-24.04 (ghim), Node 20 (cache npm) | checkout → `npm ci` → `npx playwright install chromium` → `npm run test:e2e` | Có |
+| `verify` | ubuntu-24.04 (ghim), `if: always()`, `needs: [unit, e2e]` | Chỉ thành công khi cả hai job trên kết thúc với kết quả `success` | Có — làm status check bắt buộc trên PR |
 
 - Job `unit` đồng bộ database (migrate + seed) trước khi build/typecheck/test — không bỏ bước đồng bộ database khỏi CI.
 - Job `e2e` không gắn service database; smoke E2E do Playwright tự khởi động Next.js và không cần database.
+- **Runner ghim `ubuntu-24.04`, không dùng `ubuntu-latest`**: `ubuntu-latest` đã chuyển sang Ubuntu 26.04, trong khi Playwright 1.56 (bản đang ghim) chỉ có build chromium cho `ubuntu18.04/20.04/22.04/24.04-x64` — job `e2e` chết ngay ở `npx playwright install chromium` với lỗi "Playwright does not support chromium on ubuntu26.04-x64" (14–15/11/2026). Chỉ đổi lại `ubuntu-latest` sau khi nâng Playwright lên bản có `ubuntu26.04-x64` (bản 1.65.1 đã có).
 
 ## 6. Môi trường
 
