@@ -43,7 +43,7 @@ chốt**. Cột "Nguồn" trỏ tới §5 của story tương ứng trong specs 
 | BR-001-02 | Đăng xuất vô hiệu hóa phiên tức thì; mọi yêu cầu mang phiên cũ không hợp lệ | Đã chốt | specs §5 US-001 (dòng 90) |
 | BR-001-03 | Sai định danh hoặc sai mật khẩu trả cùng một lỗi chung, không tiết lộ tài khoản tồn tại | Đã chốt | specs §5 US-001 (dòng 91) |
 | BR-001-04 | Tài khoản `LOCKED` không được tạo phiên mới cho tới khi Admin mở khóa | Đã chốt | specs §5 US-001 (dòng 92) |
-| BR-001-05 | Phiên có thời hạn hiệu lực tối đa (số cụ thể — Q12) | Đã chốt | specs §5 US-001 (dòng 93) |
+| BR-001-05 | Phiên có thời hạn hiệu lực tối đa **8 giờ** (Q12 đã chốt 13/11/2026) | Đã chốt | specs §5 US-001 (dòng 93); [../architecture/adrs/008-session-thoi-luong.md](../architecture/adrs/008-session-thoi-luong.md) |
 
 ### US-002 — Đăng tin cho thuê (4)
 
@@ -197,8 +197,10 @@ từng mục được hợp nhất vào đây):
 | `suspension_threshold` | 3 vi phạm / 30 ngày | Số lần vi phạm trong 30 ngày trước khi tự khóa tài khoản | Ghi trong hồ sơ sản phẩm + seed; không có nhãn đề xuất/cần xác nhận | `prod.md` cũ §2.8; `src/db/seed.ts` (khóa `suspension_threshold`) |
 
 Ghi chú: `PolicySetting` là bảng key–value, ba khóa trên là ba dòng seed mặc
-định. Cửa sổ mở khiếu nại (khác `claim_window_hours`) và độ dài phiên đăng
-nhập chưa được chốt — xem Q4 và Q12.
+định. Cửa sổ mở khiếu nại (khác `claim_window_hours`) chưa được chốt — xem Q4.
+Độ dài phiên đăng nhập đã chốt 13/11/2026: **8 giờ**
+([ADR-008](../architecture/adrs/008-session-thoi-luong.md)); phần còn lại của
+Q12 (xử lý phiên đang mở khi tài khoản bị khóa) vẫn mở.
 
 ## 5. Quyết định mở Q1–Q14
 
@@ -222,7 +224,7 @@ Phụ lục D. Theo dõi trạng thái chốt tại
 | Q9 | Owner có được bỏ ẩn tin Admin đã ẩn? Khóa user còn CONFIRMED/PICKED_UP xử lý thế nào (A/B/C)? |
 | Q10 | Lý do phân xử/quản trị bắt buộc: độ dài, mã lỗi thiếu lý do (ERR-USR-023/024), SLA phân xử |
 | Q11 | Validation bổ sung: self-booking, thời điểm snapshot giá/cọc, ngày bắt đầu = hôm nay (múi giờ nào) |
-| Q12 | Thời hạn sống của phiên đăng nhập và cách xử lý khi tài khoản bị khóa trong phiên đang mở |
+| Q12 | Thời hạn sống của phiên đăng nhập — **đã chốt 13/11/2026: 8 giờ** ([ADR-008](../architecture/adrs/008-session-thoi-luong.md)); còn mở: cách xử lý khi tài khoản bị khóa trong phiên đang mở |
 | Q13 | US-012 (phân xử) Should → Must? |
 | Q14 | Chat/thương lượng giá có làm trong 6 tuần (đề xuất giữ Won't)? |
 
