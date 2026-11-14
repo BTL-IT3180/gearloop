@@ -114,13 +114,19 @@ Toàn bộ T2 chạy READ-ONLY: không sửa file, không chạy lint/build/test
 
 **(b) Guard local-only mới (phần thay đổi của lượt này).** File mới **`src/db/reset.ts`**:
 
-- Đọc `DATABASE_URL` từ biến môi trường hoặc file `.env` ở repo root (dòng 10-35, 43).
-- Từ chối **exit 1, chưa đụng DB** (dòng 37-41) khi: thiếu `DATABASE_URL`; `NODE_ENV=production`
-  (dòng 47-49); URL không parse được (dòng 51-59); protocol không phải `postgres:`/`postgresql:`
-  (dòng 60-62); host không thuộc `localhost`/`127.0.0.1`/`::1` (dòng 63-68).
-- Khi hợp lệ: in **database đích** (dòng 70), truyền nguyên `DATABASE_URL` cho Prisma (dòng 72),
-  spawn `prisma migrate reset --force --skip-seed` (dòng 76-78) rồi `src/db/seed.ts` (dòng 83-86); **lan truyền
-  mã thoát** — Prisma lỗi thì dừng, **không** chạy seed (dòng 79-81, 87).
+- Nạp cấu hình theo thứ tự **biến đã export → `.env`** (`loadRepoEnv()`, dòng 31-58). `.env`
+  được đọc bằng parser chuẩn của Node (`process.loadEnvFile`, dòng 35-40 — cần Node ≥ 20.12) nên
+  hiểu đúng nháy, khoảng trắng và comment cuối dòng; biến đã export được khôi phục tường minh
+  (dòng 50-57) nên luôn thắng `.env`.
+- Từ chối **exit 1, chưa đụng DB** (dòng 61-64) khi: `.env` khai báo trùng `DATABASE_URL` hoặc
+  `NODE_ENV` (dòng 42-49 — parser lấy dòng cuối nên giá trị dùng có thể khác ý người viết);
+  thiếu/rỗng `DATABASE_URL` (dòng 68-71); `NODE_ENV=production` từ shell **hoặc** `.env`
+  (dòng 73-75); URL không parse được (dòng 78-84); protocol không phải `postgres:`/`postgresql:`
+  (dòng 86-88); host không thuộc `localhost`/`127.0.0.1`/`::1` (dòng 92-94).
+- Khi hợp lệ: in **database đích** (dòng 96), dựng `childEnv` = cấu hình đã kiểm tra + các biến
+  còn lại của `.env` (dòng 99) rồi truyền cho **cả** Prisma `migrate reset --force --skip-seed`
+  (dòng 101-105) **và** `src/db/seed.ts` (dòng 110-113); **lan truyền mã thoát** — Prisma lỗi thì
+  dừng, **không** chạy seed (dòng 106-108).
 
 Kèm theo: `package.json` đổi `db:reset` thành `tsx src/db/reset.ts` (giá trị cũ nêu trên) và
 **3 dòng docs**: `README.md:248`, `docs/guides/development-workflow.md:90` (§7) + `:115` (bảng §10),
@@ -145,6 +151,17 @@ Kèm theo: `package.json` đổi `db:reset` thành `tsx src/db/reset.ts` (giá t
 - **`npm run lint`: pass. `npm run typecheck`: pass. `npm run build`: pass.**
 - **Guard đã được xác minh 6 đường từ chối** (host không local, thiếu `DATABASE_URL`, protocol sai,
   `NODE_ENV=production`, URL rác, nhánh đọc `.env`) — tất cả **exit 1** và **không chạm DB**.
+- **Nâng cấp 14/11/2026 (theo review chéo) — 11 case chạy trong thư mục tạm** (`node_modules`,
+  `prisma` là symlink; `DATABASE_URL` trỏ DB local **không tồn tại** dạng `gearloop_probe_*`, Prisma
+  dừng ở "Schema engine error: permission denied to create database" nên không có gì bị xoá):
+  (1) `.env` trùng `DATABASE_URL` → từ chối kèm số dòng; (2) `.env` trùng `NODE_ENV` → từ chối;
+  (3) `DATABASE_URL = "…" # comment cuối dòng` (case parser cũ parse sai) → Prisma nhận đúng
+  `gearloop_probe_t3`; (4) shell `DATABASE_URL` thắng `.env` (Prisma thấy giá trị shell);
+  (5) `NODE_ENV=production` **chỉ trong `.env`** → chặn (trước 14/11 không chặn: lỗi thật của guard);
+  (6) `NODE_ENV=production` export trong shell → chặn; (7) shell `NODE_ENV=development` thắng `.env`
+  production → chạy tiếp; (8) `export DATABASE_URL=…` trong `.env` → nhận; (9) `DATABASE_URL` export
+  rỗng → từ chối; (10) host không local qua `.env` → chặn; (11) không `.env` + thiếu biến → chặn.
+  Mọi case **exit 1** do guard hoặc do Prisma dừng vì DB không tồn tại; **không case nào chạy seed**.
 - **Đường cho phép chỉ xác minh một phần:** guard resolve đúng URL local (log đích), truyền nguyên
   URL cho Prisma (Prisma báo đúng datasource `gearloop_test` + `schema=e0f4_guard_probe`), lan truyền
   mã thoát khi Prisma lỗi, **không chạy seed sau khi Prisma lỗi**, schema probe đã dọn và schema

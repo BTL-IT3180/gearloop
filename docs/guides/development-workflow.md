@@ -87,7 +87,7 @@ Workflow `CI` kích hoạt trên mọi `pull_request` và `push` vào `main`; c�
 - Seed guard: trước khi wipe, seed kiểm tra `Booking`/`DepositLedger`/`AuditLog`; còn dữ liệu ở bất kỳ bảng nào thì bỏ qua và exit 0 để Docker tiếp tục chạy app; không xóa hoặc vô hiệu trigger append-only của ledger/audit. Nếu cả ba bảng trống, wipe và nạp mẫu chạy trong transaction SERIALIZABLE; lỗi thật rollback toàn bộ và exit 1; `CalendarDay` được xoá trước `Booking`. Seed vẫn tái tạo tài khoản/danh mục/tin mẫu khi chưa có dữ liệu nghiệp vụ; không dùng seed để reset dữ liệu giao dịch.
 - Backfill thời điểm trả chỉ từ biên bản RETURN; booking `RETURNED` thiếu chứng cứ bị chặn, cần DB OWNER xử lý. Migration bổ sung FK user dùng RESTRICT: không hard-delete user có lịch sử, dùng `isActive` để khóa/mở tài khoản.
 - Không tự ý sửa schema, tạo migration hoặc thay đổi quy trình database ngoài phạm vi issue được giao và quyền hạn được phân công.
-- Reset database local (khi được phép mất dữ liệu): `npm run db:reset` — xoá sạch dữ liệu, chạy lại toàn bộ migration và nạp dữ liệu mẫu (`prisma migrate reset --force --skip-seed` trong guard + seed chạy tường minh một lần). Script kiểm tra `DATABASE_URL` và từ chối chạy nếu không trỏ tới database local.
+- Reset database local (khi được phép mất dữ liệu): `npm run db:reset` — xoá sạch dữ liệu, chạy lại toàn bộ migration và nạp dữ liệu mẫu (`prisma migrate reset --force --skip-seed` trong guard local-only + seed chạy tường minh một lần; guard đọc `.env` bằng `process.loadEnvFile`, đòi Node ≥ 20.12 và từ chối khai báo trùng biến guard). Script kiểm tra `DATABASE_URL` và từ chối chạy nếu không trỏ tới database local.
 
 ## 8. Secrets và bảo mật
 

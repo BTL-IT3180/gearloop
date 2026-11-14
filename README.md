@@ -245,7 +245,7 @@ npm run lint         # ESLint
 npm run typecheck    # tsc --noEmit
 npm test             # vitest — CẦN database đang chạy và đã seed
 npm run test:e2e     # playwright Chromium — tự khởi động Next.js
-npm run db:reset     # xoá sạch + migrate + seed lại (chỉ DB local — script từ chối DATABASE_URL không phải local)
+npm run db:reset     # xoá sạch + migrate + seed lại (chỉ DB local; cần Node ≥ 20.12 để đọc .env)
 ```
 
 Các test tích hợp trong `npm test` truy vấn PostgreSQL thật — không mock.
