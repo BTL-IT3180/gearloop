@@ -15,7 +15,7 @@ Trạng thái tổ chức: cập nhật 12/11/2026 sau đợt tổng kiểm toá
 | User story | [`user-stories/`](./user-stories/) | 3 tài liệu canonical: story nền, đặc tả AC/BR đầy đủ, mục lục hướng dẫn | PO, dev, QA |
 | Kế hoạch | [`planning/`](./planning/) | Backlog & công cụ theo dõi, kế hoạch Agile task-level, sprint hiện hành | Scrum team |
 | Kiến trúc | [`architecture/`](./architecture/) | Tổng quan hệ thống, thiết kế database, hợp đồng API, ADR | Dev, DB OWNER |
-| Kiểm thử | [`testing/`](./testing/) | Chiến lược kiểm thử & regression, kiểm kê test case hiện có | QA, dev |
+| Kiểm thử | [`testing/`](./testing/) | Chiến lược kiểm thử & regression, kiểm kê test case hiện có, test plan theo sprint (ánh xạ AC/BR → test) | QA, dev |
 | Hướng dẫn | [`guides/`](./guides/) | Cài đặt & chạy, quy trình phát triển (branch/PR/CI/CI-CD, môi trường) | Dev, reviewer |
 
 Cây thư mục:
@@ -40,10 +40,11 @@ docs/
 │   ├── system-overview.md
 │   ├── database-design.md
 │   ├── api-contract.md
-│   └── adrs/                           (ADR-001…007 + mục lục)
+│   └── adrs/                           (ADR-001…008 + mục lục)
 ├── testing/
 │   ├── test-strategy.md
-│   └── test-cases.md
+│   ├── test-cases.md
+│   └── test-plan-sprint-1.md
 └── guides/
     ├── setup.md
     └── development-workflow.md

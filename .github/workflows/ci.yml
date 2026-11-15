@@ -12,10 +12,14 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Runner ghim vào ubuntu-24.04: `ubuntu-latest` đã chuyển sang 26.04 trong khi
+# Playwright 1.56 chưa có chromium build cho ubuntu26.04-x64 (job e2e chết ở
+# `npx playwright install chromium`). Chỉ đổi sang `ubuntu-latest`/26.04 sau khi
+# nâng Playwright lên bản có hỗ trợ 26.04.
 jobs:
   unit:
     name: unit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
 
     services:
@@ -73,7 +77,7 @@ jobs:
 
   e2e:
     name: e2e
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
 
     steps:
@@ -99,7 +103,7 @@ jobs:
     name: verify
     if: always()
     needs: [unit, e2e]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Require unit and e2e jobs to pass

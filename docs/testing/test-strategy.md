@@ -64,6 +64,8 @@ mẫu lỗi giữa chừng. Kiểm tra exit code và dữ liệu trước/sau, k
 
 ## 2. Kế hoạch mở rộng theo sprint
 
+Test plan chi tiết theo từng AC/BR của Sprint 1 (US-001→US-004): [test-plan-sprint-1.md](./test-plan-sprint-1.md) (v0 — ánh xạ AC/BR → test case dự kiến, mức test, trạng thái).
+
 | Sprint | Thêm test |
 | --- | --- |
 | S2 | Luồng booking: tạo → lịch flip BOOKED → ledger DEPOSIT_HELD; hủy → VOID; chồng ngày → 409 |

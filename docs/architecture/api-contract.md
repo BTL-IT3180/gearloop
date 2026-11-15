@@ -63,7 +63,7 @@ POST /api/auth/register { email, password, fullName, role: RENTER|OWNER }
   → bcrypt.hashSync(password, 10) → INSERT users → set cookie JWT (httpOnly)
 POST /api/auth/login { email, password }
   → SELECT user → bcrypt.compare → sai → 401 ERR-USR-010 "Thông tin đăng nhập không đúng."
-  → đúng → set cookie (payload: { sub, role }, exp 7 ngày)
+  → đúng → set cookie (payload: { sub, role }, exp 8 giờ) (ADR-008, Q12 chốt 13/11/2026)
 ```
 
 Cookie: `httpOnly; SameSite=Lax; Secure (production)`. Không localStorage.
@@ -137,8 +137,17 @@ xem mục 7 và [ADR-004](./adrs/004-deposit-ledger.md).
 - `VOID` hủy phần cọc còn giữ khi từ chối: số tiền phải bằng số dư còn lại,
   không ghi thêm `RELEASE` cho chính phần tiền đã VOID; không ghi bút toán
   số tiền 0.
-- Award trong phân xử phải ≤ `booking.depositVnd` (400 nếu vượt) — hệ thống
-  chặn vượt ở tầng DB, không phụ thuộc service.
+- Award trong phân xử phải ≤ `booking.depositVnd` (400 nếu vượt). Kết luận
+  nhóm ngày 13/11/2026: **service validate là chính** — vượt cọc → HTTP `400`
+  với mã USR theo catalog (`src/lib/error-catalog.ts`). Catalog hiện chưa có
+  mã riêng cho "award vượt cọc" (ERR-USR-019 hiện diễn đạt giới hạn tỷ lệ
+  0–100%) — pod C chốt mã cụ thể trước khi làm E2-F5-T3.
+- DB giữ CHECK một dòng làm lưới an toàn cho phần diễn đạt được trên một dòng
+  của chính bảng `DamageClaim` (DB hiện **chưa có** CHECK này; sẽ bổ sung cùng
+  migration khi pod C xác nhận).
+- Ràng buộc liên bảng `amountAwardedVnd <= Booking.depositVnd` không diễn đạt
+  được bằng CHECK một dòng → bị chặn gián tiếp bởi trigger sổ cọc (tổng
+  `RELEASE + DEDUCT + VOID` không vượt `DEPOSIT_HELD`) và bởi service.
 
 ## 8. Bảng trạng thái endpoint
 

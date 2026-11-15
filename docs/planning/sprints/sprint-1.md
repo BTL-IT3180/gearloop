@@ -11,7 +11,7 @@ Sizing: S ≈ 2–3h · M ≈ 1 ngày · L ≈ 2 ngày (đã gồm review).
 ### GL-101 · Email/password auth (A · M)
 - [ ] Register → login → logout hoạt động
 - [ ] `password_hash` là bcrypt (kiểm tra trong DB, không plaintext)
-- [ ] Session = JWT trong cookie httpOnly; sai thông tin → 401, không lộ stack
+- [ ] Session = JWT trong cookie httpOnly (TTL **8 giờ** — [ADR-008](../../architecture/adrs/008-session-thoi-luong.md)); sai thông tin → 401, không lộ stack
 - [ ] Vẽ control-flow graph login cho Lab 11 (kèm PR)
 
 ### GL-102 · RBAC guard (A · M)

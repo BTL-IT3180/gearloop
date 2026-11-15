@@ -426,7 +426,7 @@ stateDiagram-v2
 
 | Quy tắc nghiệp vụ | DB hiện tại | Trách nhiệm service |
 | --- | --- | --- |
-| `DamageClaim.amountAwardedVnd <= Booking.depositVnd` | Chưa có CHECK/trigger kiểm tra trực tiếp field award; ledger chỉ chặn chi vượt số dư | Validate số tiền phân xử trước khi ghi claim và ledger trong transaction |
+| `DamageClaim.amountAwardedVnd <= Booking.depositVnd` | Chưa có CHECK/trigger trực tiếp trên field award; ledger chỉ chặn gián tiếp qua số dư. CHECK một dòng trên chính bảng `DamageClaim` (lưới an toàn) chưa có, sẽ bổ sung cùng migration khi pod C xác nhận | Service validate là chính: vượt cọc → HTTP 400 + mã USR theo catalog (`src/lib/error-catalog.ts`); phần liên bảng chặn gián tiếp bởi trigger sổ cọc và service (chốt 13/11/2026 — pod C xác nhận trước E2-F5-T3) |
 | Mở claim cần biên bản RETURN có `NOT_OK` | FK bảo vệ liên kết booking, chưa kiểm tra điều kiện NOT_OK khi tạo claim | Kiểm tra biên bản, quyền mở claim và cửa sổ claim |
 | `Review.rating` trong 1–5 | Chỉ lưu Int, chưa có CHECK giới hạn 1–5 | Validate rating trước khi tạo review |
 | Chuyển trạng thái booking, quyền thao tác và điều kiện đi kèm | Enum giới hạn tên trạng thái; trigger returnedAt không thay thế state machine | Kiểm tra role/quyền sở hữu, trạng thái nguồn, biên bản và cập nhật có điều kiện trong transaction |
