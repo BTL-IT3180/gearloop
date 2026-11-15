@@ -30,7 +30,7 @@ Repo hiện có **hai hệ kế hoạch khác nhau** cùng dùng nhãn S1/S2/S3 
 - Nguồn: [`gearloop_project_plan.md`](./gearloop_project_plan.md) §2 (cấu trúc WBS) và §3 (bảng Agile Project Plan đầy đủ), kèm §5 (CPM/đường găng), §6 (gate), §7 (giả định + Q1–Q14).
 - Quy mô: **4 Epic · 22 Feature · 98 task (≤ 2 ngày) · 217 SP**; mã WBS `E<epic>-F<feature>-T<n>`. Task bóc từ AC + BR của từng story trong specs.
 - Sprint theo kế hoạch: **3 sprint + Sprint 0** — Sprint 0 = tuần 1 (nền tảng, gate G0 03/11) · S1 = tuần 2–3 (US-001→004) · S2 = tuần 4–5 (US-005→009) · S3 = tuần 6 (US-010→013 + freeze/rehearsal/demo). Lịch 28/10 → 08/12/2026.
-- Team theo kế hoạch: **4 cặp cố định P1–P4** (P1 Đức+Dũng · P2 Đạt+Trung Anh · P3 Bảo+Nguyên Hoàng · P4 Hiếu+Quốc Anh).
+- Team theo kế hoạch: **4 cặp cố định P1–P4** (P1 Đức+Dũng · P2 Bảo+Hoàng · P3 Hiếu+Quốc Anh · P4 Đạt+Trung Anh — chốt 13/11/2026). Danh sách cặp giữ tại đây là canonical; `gearloop_project_plan.md` §1.3 trỏ sang. E0-F4: P3 thực hiện, pod D review `docs/` + `tests/`, pod B review `src/db/`.
 - Kế hoạch còn mang nhãn giả định `[ASSUMPTION]` (capacity ~40 SP/tuần, 1 SP ≈ 0,5 ngày công cặp) và lịch điều chỉnh có chủ đích cho chuỗi phụ thuộc US-005→007→010→011→012 — cần chốt tại review.
 
 ### 2.3 Bảng so sánh và các điểm xung đột (không tự hòa giải)
@@ -91,7 +91,7 @@ Từ kế hoạch §7.2 (Q1–Q12 lấy từ Phụ lục D của specs; Q13–Q1
 | Q9 | Ẩn tin Admin ẩn + xử lý khóa user còn booking | E1-F4-T4, E3-F4-T1, E3-F4-T2 | 01/12 | Chặn; phương án A (đề xuất) |
 | Q10 | Lý do bắt buộc ghi vết + mã lỗi ERR-USR-023/024 + SLA hàng đợi | E3-F3-T1, E3-F3-T2, E3-F4-T3 | 27/11 | Bắt buộc lý do (≥10 ký tự) + mã đề xuất |
 | Q11 | Validation bổ sung (self-booking, thời điểm snapshot, ngày bắt đầu = hôm nay) | E1-F2-T2, E1-F3-T1, E2-F1-T1, E2-F1-T4 | 06/11 | Chặn self-booking; snapshot tại REQUESTED; ngày bắt đầu = hôm nay hợp lệ (đề xuất) |
-| Q12 | Thời lượng phiên đăng nhập | E1-F1-T1, E1-F1-T4 | 04/11 | Cấu hình timeout (đề xuất 8h); khóa user → huỷ hiệu lực phiên |
+| Q12 | Thời lượng phiên đăng nhập | E1-F1-T1, E1-F1-T4 | 04/11 | Cấu hình timeout (đề xuất 8h); khóa user → huỷ hiệu lực phiên — **đã chốt 13/11/2026: phiên 8 giờ (ADR-008)**; nửa "khóa user → huỷ hiệu lực phiên" vẫn mở |
 | Q13 | US-012 Should → Must? | — (ưu tiên E3-F3) | 01/11 | Đề xuất nâng Must (đường găng) |
 | Q14 | Chat/thương lượng giá có làm không? | — | 01/11 | Giữ Won't cho 6 tuần |
 

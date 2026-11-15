@@ -24,6 +24,7 @@
 | P2 | Nguyễn Quốc Bảo + Trần Nguyên Hoàng | Item-Listing / điều kiện bàn giao–hoàn trả / Admin | Epic 0-F3, US-002, US-003, US-010, US-011, US-013 |
 | P3 | Vũ Đức Hiếu + Nguyễn Quốc Anh | Search & Booking flow | Epic 0-F4, US-004, US-005, US-007, US-008, QA chéo |
 | P4 | Trần Tiến Đạt + Phạm Trung Anh | Auth/RBAC / Deposit ledger / Dispute | Epic 0-F2, US-001, US-009, US-012, QA chéo |
+> Danh sách cặp đã chốt 13/11/2026 giữ tại `docs/planning/backlog.md` §2.2. E0-F4: P3 thực hiện; pod D review `docs/` + `tests/`; pod B review `src/db/`.
 
 - **Epic 0 do cặp P1 chủ trì (2 người phụ trách hạ tầng)**; ba cặp còn lại đóng góp hạng mục chuyên môn trong Tuần 1 (UI primitives — P2; seed/test plan — P3; Auth/RBAC khung + khung test — P4) và mọi hạng mục phải qua review của P1 trước Gate G0.
 - **QA chéo bắt buộc**: mỗi feature được kiểm thử bởi một cặp khác trước review sprint (các task “QA chéo …” ghi rõ cặp thực hiện).
@@ -52,7 +53,7 @@
 | Yes | L2 — Feature | E0-F1 | Nền tảng kỹ thuật & quy ước | Foundation | Nguyễn Hồng Đức + Lê Anh Dũng | 13 | 28/10 | 02/11 | 6 | Not Started | 5 task · 13 SP |
 | Yes | L2 — Feature | E0-F2 | Auth & RBAC khung | Auth/RBAC | Trần Tiến Đạt + Phạm Trung Anh | 7 | 29/10 | 02/11 | 5 | Not Started | 3 task · 7 SP |
 | Yes | L2 — Feature | E0-F3 | UI primitives & AppShell | Foundation | Nguyễn Quốc Bảo + Trần Nguyên Hoàng | 7 | 30/10 | 02/11 | 4 | Not Started | 3 task · 7 SP |
-| Yes | L2 — Feature | E0-F4 | Dữ liệu mẫu & test plan nền | Testing | Vũ Đức Hiếu + Nguyễn Quốc Anh | 6 | 29/10 | 02/11 | 5 | Not Started | 3 task · 6 SP |
+| Yes | L2 — Feature | E0-F4 | Dữ liệu mẫu & test plan nền | Testing | Vũ Đức Hiếu + Nguyễn Quốc Anh | 6 | 29/10 | 02/11 | 5 | Not Started | 3 task · 6 SP · Chốt 13/11: P3 làm; pod D review docs/tests, pod B review src/db |
 | Yes | L2 — Feature | E0-F5 | Gate G0 — “thống nhất code base” | Foundation | Toàn nhóm (Đức + Dũng chủ trì) | 2 | 03/11 | 03/11 | 1 | Not Started | 1 task · 2 SP |
 | Yes | L1 — Epic | E1 | Epic 1 — Sprint 1: Nền sản phẩm (US-001→US-004) | — | Toàn nhóm | 51 | 04/11 | 17/11 | 14 | Not Started | 5 feature · 26 task · 51 SP |
 | Yes | L2 — Feature | E1-F1 | US-001 Đăng nhập & phân quyền | Auth/RBAC | Trần Tiến Đạt + Phạm Trung Anh | 9 | 04/11 | 09/11 | 6 | Not Started | 4 task · 9 SP · AC 6/BR 5 |
@@ -98,18 +99,18 @@
 | Yes | L3 — Task | E0-F3-T1 | Design tokens + theme + AppShell điều hướng theo vai | Foundation | Nguyễn Quốc Bảo + Trần Nguyên Hoàng | 2 | 30/10 | 30/10 | 1 | Not Started | Trên đường găng (Slack=0) |
 | Yes | L3 — Task | E0-F3-T2 | UI primitives: Button/Input/Select/Table/Card/Toast/EmptyState | Foundation | Nguyễn Quốc Bảo + Trần Nguyên Hoàng | 3 | 31/10 | 31/10 | 1 | Not Started | Trên đường găng (Slack=0) |
 | Yes | L3 — Task | E0-F3-T3 | Trang chủ skeleton + trang lỗi 4xx/5xx + loading/empty state | Foundation | Nguyễn Quốc Bảo + Trần Nguyên Hoàng | 2 | 01/11 | 02/11 | 2 | Not Started | Trên đường găng (Slack=0) |
-| Yes | L2 — Feature | E0-F4 | Dữ liệu mẫu & test plan nền | Testing | Vũ Đức Hiếu + Nguyễn Quốc Anh | 6 | 29/10 | 02/11 | 5 | Not Started | 3 task · 6 SP |
+| Yes | L2 — Feature | E0-F4 | Dữ liệu mẫu & test plan nền | Testing | Vũ Đức Hiếu + Nguyễn Quốc Anh | 6 | 29/10 | 02/11 | 5 | Not Started | 3 task · 6 SP · Chốt 13/11: P3 làm; pod D review docs/tests, pod B review src/db |
 | No | L3 — Task | E0-F4-T1 | Rà soát spec + lập test plan v0 cho Sprint 1 | Testing | Vũ Đức Hiếu + Nguyễn Quốc Anh | 2 | 29/10 | 30/10 | 2 | Not Started | — |
 | Yes | L3 — Task | E0-F4-T2 | Review chéo schema + ADR quy ước DB/API | Testing | Vũ Đức Hiếu + Nguyễn Quốc Anh | 2 | 01/11 | 01/11 | 1 | Not Started | Trên đường găng (Slack=0) |
-| Yes | L3 — Task | E0-F4-T3 | Seed data v1 (3 vai + 8 tin mẫu + khung rảnh) + script reset DB | Testing | Vũ Đức Hiếu + Nguyễn Quốc Anh | 2 | 02/11 | 02/11 | 1 | Not Started | Trên đường găng (Slack=0) |
+| Yes | L3 — Task | E0-F4-T3 | Seed data v1 (3 vai + 4 tin mẫu + khung rảnh) + script reset DB | Testing | Vũ Đức Hiếu + Nguyễn Quốc Anh | 2 | 02/11 | 02/11 | 1 | Not Started | Trên đường găng (Slack=0) · Chốt 13/11: giữ 4 tin (khớp GL-109/smoke test) |
 | Yes | L2 — Feature | E0-F5 | Gate G0 — “thống nhất code base” | Foundation | Toàn nhóm (Đức + Dũng chủ trì) | 2 | 03/11 | 03/11 | 1 | Not Started | 1 task · 2 SP |
 | Yes | L3 — Task | E0-F5-T1 | Checklist + review chéo + sign-off Gate G0 “code base thống nhất” | Foundation | Toàn nhóm (Đức + Dũng chủ trì) | 2 | 03/11 | 03/11 | 1 | Not Started | Chưa sign-off thì chưa chia việc theo US; Trên đường găng (Slack=0) |
 | Yes | L1 — Epic | E1 | Epic 1 — Sprint 1: Nền sản phẩm (US-001→US-004) | — | Toàn nhóm | 51 | 04/11 | 17/11 | 14 | Not Started | 5 feature · 26 task · 51 SP |
 | Yes | L2 — Feature | E1-F1 | US-001 Đăng nhập & phân quyền | Auth/RBAC | Trần Tiến Đạt + Phạm Trung Anh | 9 | 04/11 | 09/11 | 6 | Not Started | 4 task · 9 SP · AC 6/BR 5 |
-| Yes | L3 — Task | E1-F1-T1 | Hoàn thiện đăng nhập/đăng xuất + quản lý phiên + thông báo lỗi xác thực | Auth/RBAC | Trần Tiến Đạt + Phạm Trung Anh | 3 | 04/11 | 05/11 | 2 | Not Started | AC-001-01..03; BR-001-01..03; Chờ chốt Q12 (Phụ lục D); Trên đường găng (Slack=0) |
+| Yes | L3 — Task | E1-F1-T1 | Hoàn thiện đăng nhập/đăng xuất + quản lý phiên + thông báo lỗi xác thực | Auth/RBAC | Trần Tiến Đạt + Phạm Trung Anh | 3 | 04/11 | 05/11 | 2 | Not Started | AC-001-01..03; BR-001-01..03; Q12 đã chốt 13/11/2026: phiên 8 giờ (ADR-008); Trên đường găng (Slack=0) |
 | Yes | L3 — Task | E1-F1-T2 | Tài khoản mẫu 3 vai + gán vai theo phiên + chặn đăng nhập tài khoản khóa | Auth/RBAC | Trần Tiến Đạt + Phạm Trung Anh | 2 | 06/11 | 07/11 | 2 | Not Started | AC-001-01, 04; BR-001-01, 04; Trên đường găng (Slack=0) |
 | Yes | L3 — Task | E1-F1-T3 | Áp ma trận RBAC lên toàn bộ route + chặn thao tác trái vai | Auth/RBAC | Trần Tiến Đạt + Phạm Trung Anh | 2 | 08/11 | 08/11 | 1 | Not Started | AC-001-06; BR-001-01; Trên đường găng (Slack=0) |
-| Yes | L3 — Task | E1-F1-T4 | Thu hồi quyền khi phiên hết hạn + kiểm thử US-001 (unit + e2e) | Auth/RBAC | Trần Tiến Đạt + Phạm Trung Anh | 2 | 09/11 | 09/11 | 1 | Not Started | AC-001-05; Chờ chốt Q12 (Phụ lục D); Trên đường găng (Slack=0) |
+| Yes | L3 — Task | E1-F1-T4 | Thu hồi quyền khi phiên hết hạn + kiểm thử US-001 (unit + e2e) | Auth/RBAC | Trần Tiến Đạt + Phạm Trung Anh | 2 | 09/11 | 09/11 | 1 | Not Started | AC-001-05; Q12 đã chốt 13/11/2026: phiên 8 giờ (ADR-008); Trên đường găng (Slack=0) |
 | Yes | L2 — Feature | E1-F2 | US-002 Đăng tin cho thuê | Item | Nguyễn Quốc Bảo + Trần Nguyên Hoàng | 10 | 04/11 | 10/11 | 7 | Not Started | 5 task · 10 SP · AC 8/BR 4 |
 | Yes | L3 — Task | E1-F2-T1 | Form đăng tin: mô tả, tình trạng, giá thuê, mức cọc + validation bắt buộc | Item | Nguyễn Quốc Bảo + Trần Nguyên Hoàng | 2 | 04/11 | 05/11 | 2 | Not Started | AC-002-01..04; BR-002-01/02; Chờ chốt Q1 (Phụ lục D) |
 | Yes | L3 — Task | E1-F2-T2 | Khung ngày giờ rảnh: nhập nhiều khung + chặn tự chồng lấn | Item | Nguyễn Quốc Bảo + Trần Nguyên Hoàng | 3 | 06/11 | 07/11 | 2 | Not Started | AC-002-05..07; BR-002-03; Chờ chốt Q11 (Phụ lục D) |
@@ -487,7 +488,7 @@ flowchart LR
 | Q9 | Ẩn tin Admin ẩn + xử lý khóa user còn booking | E1-F4-T4, E3-F4-T1, E3-F4-T2 | 01/12 | Chặn; phương án A (đề xuất) |
 | Q10 | Lý do bắt buộc ghi vết + mã lỗi ERR-USR-023/024 + SLA hàng đợi | E3-F3-T1, E3-F3-T2, E3-F4-T3 | 27/11 | Bắt buộc lý do (≥10 ký tự) + mã đề xuất |
 | Q11 | Validation bổ sung (self-booking, thời điểm snapshot, ngày bắt đầu = hôm nay) | E1-F2-T2, E1-F3-T1, E2-F1-T1, E2-F1-T4 | 06/11 | Chặn self-booking; snapshot tại REQUESTED; ngày bắt đầu = hôm nay hợp lệ (đề xuất) |
-| Q12 | Thời lượng phiên đăng nhập | E1-F1-T1, E1-F1-T4 | 04/11 | Cấu hình timeout (đề xuất 8h); khóa user → hủy hiệu lực phiên |
+| Q12 | Thời lượng phiên đăng nhập — **đã chốt 13/11/2026: 8 giờ** (nửa thời lượng; ADR-008) | E1-F1-T1, E1-F1-T4 | 04/11 | Cấu hình timeout (đề xuất 8h); khóa user → hủy hiệu lực phiên — nửa xử lý phiên khi tài khoản bị khóa: vẫn mở (pod A) |
 | Q13 | US-012 Should → Must? | — (ưu tiên E3-F3) | 01/11 | Đề xuất nâng Must (đường găng) |
 | Q14 | Chat/thương lượng giá có làm không? | — | 01/11 | Giữ Won't cho 6 tuần |
 
