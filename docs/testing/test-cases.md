@@ -14,7 +14,7 @@ Số case được đếm bằng cách đọc trực tiếp các file test ngày
 | `tests/seed.test.ts` | 5 | Có (`gearloop_test` local, quyền tạo/xóa schema) | Vitest | Script seed thật: reseed, guard dữ liệu, rollback |
 | `tests/smoke.test.ts` | 5 | Có (DB `gearloop_test` đã migrate + seed) | Vitest | Smoke schema + seed (GL-107, GL-109) |
 | `src/features/auth/credentials.test.ts` | 6 | Có (DB `gearloop_test` đã seed) | Vitest | Credentials, role từ DB, input sai |
-| `e2e/smoke.spec.ts`, `e2e/auth.spec.ts` | 3 | Có (DB `gearloop_test` đã migrate + seed) | Playwright Chromium | Smoke trang chủ, lỗi credentials chung, đăng nhập/đăng xuất |
+| `e2e/smoke.spec.ts`, `e2e/auth.spec.ts` | 3 | Có (DB `gearloop_test` đã migrate + seed) | Playwright Chromium | Smoke trang chủ, lỗi credentials chung, đăng nhập/đăng xuất, session API và cookie httpOnly hết hạn sau 8 giờ |
 | **Tổng Vitest** | **109** | — | — | 31 + 62 + 5 + 5 + 6 |
 
 Số 103 trong `docs/planning/sprints/owner-renter-rename.md` là kết quả lịch sử trước khi thêm 6 case credentials. Tổng hiện tại là 109 case Vitest; 3 case E2E chạy riêng bằng Playwright.
