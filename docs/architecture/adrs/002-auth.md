@@ -1,7 +1,7 @@
-# ADR-002: bcrypt + JWT httpOnly cookie, không dùng demo header
+# ADR-002: Auth.js Credentials + bcrypt session, không dùng demo header
 
 - **Trạng thái:** Chấp nhận
-- **Ngày:** 2026-10-26
+- **Ngày:** 2026-10-26 (cập nhật 2026-11-12)
 - **Liên quan:** [ADR-001](./001-nextjs-typescript.md), ADR-002 của template (demo auth)
 
 ## Bối cảnh
@@ -15,18 +15,30 @@ cho case study nội bộ, không hợp lý với GearLoop vì app **deploy lên
 | Phương án | Ưu | Nhược |
 | --- | --- | --- |
 | Demo header như template | Đúng template, test dễ | Ai cũng giả được user khác — RBAC thành hình thức |
-| **bcrypt + JWT httpOnly cookie** ✅ | RBAC thật sự có nghĩa; login là luồng white-box test của môn học (Labs 11–12) | Phải cẩn thận secret/cookie flags |
-| Auth.js / NextAuth | Nhanh | Magic nhiều, khó vẽ control-flow graph để nộp bài |
+| Auth.js Credentials + bcrypt session ✅ | Tích hợp session/cookie chuẩn; một nguồn kiểm tra identity và role phía server | Auth.js v5 đang ở bản beta; cần giới hạn cấu hình và kiểm thử |
+| bcrypt + JWT cookie bằng jose trực tiếp | Ít abstraction | Phải tự duy trì cookie, ký/mã hóa token, hết hạn và logout |
 
 ## Quyết định
 
-`bcrypt.hashSync(password, 10)` lúc đăng ký; login so `bcrypt.compare`; session
-là JWT (thư viện `jose`) đặt trong cookie `httpOnly; SameSite=Lax; Secure`.
-Payload `{ sub, role }`, hạn 7 ngày. Tài khoản **demo vẫn dùng mật khẩu chung
-`demo123`** để tiện thuyết trình — nhưng cơ chế là thật.
+Theo xác nhận của nhóm ngày 2026-11-12, dùng Auth.js Credentials provider cho
+đăng nhập, đăng xuất và session. Mật khẩu lưu trong `User.passwordHash` vẫn
+dùng bcrypt; Auth.js kiểm tra credentials bằng `bcrypt.compare` và tạo JWT
+session được mã hóa trong cookie `httpOnly; SameSite=Lax; Secure` ở production.
+Session tối đa 7 ngày và gắn với đúng một user cùng một role
+`ADMIN | OWNER | RENTER`; Auth.js vẫn quản lý các metadata tiêu chuẩn của
+token/session như thời hạn và thông tin profile.
+
+Role không lấy từ form hoặc dữ liệu session do client gửi: Auth.js nạp lại
+user đang hoạt động và role từ PostgreSQL khi đọc session. Helper server
+`src/lib/auth.ts` là giao diện dùng chung để lấy user hiện tại. Trang
+`/login` gọi Credentials qua Server Action; logout dùng Auth.js `signOut`.
+Đăng ký không thuộc phạm vi quyết định của task này.
 
 ## Hệ quả
 
-- `password_hash` không bao giờ trả về client (lọc ở repository).
-- Đổi `AUTH_SECRET` = mọi session cũ vô hiệu (logout toàn cục — chấp nhận được).
-- Test login vẽ được flow graph cho Lab 11 (mỗi nhánh sai → 401, đúng → cookie).
+- `passwordHash` không bao giờ trả về client hoặc session.
+- Đổi `AUTH_SECRET` làm vô hiệu session cũ.
+- Sai email, mật khẩu, input hoặc tài khoản không hoạt động đều nhận cùng
+  thông điệp `ERR-USR-010`; không tiết lộ tài khoản có tồn tại hay không.
+- Mọi thao tác cần identity dùng `auth()`/`getCurrentUser()` phía server; không
+  tin role từ client.

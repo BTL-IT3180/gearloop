@@ -123,10 +123,14 @@ npm run lint                  # ESLint — không cần DB
 npm run typecheck             # tsc --noEmit — không cần DB
 
 npx playwright install chromium   # cài browser một lần
-npm run test:e2e                  # smoke E2E — Playwright tự khởi động Next.js, không cần DB
+DATABASE_URL="******localhost:55432/gearloop_test" npm run test:e2e
 ```
 
-Các test tích hợp trong `npm test` truy vấn PostgreSQL thật — không mock, chạy tuần tự vì dùng chung một database. Phạm vi từng bộ test: [../testing/test-strategy.md](../testing/test-strategy.md).
+`make test` chuẩn bị database rồi chạy Vitest. Khi chạy E2E thủ công, DB test
+cũng phải được migrate + seed trước vì các case auth đăng nhập bằng tài khoản
+seed; Playwright tự khởi động Next.js. Cả hai suite truy vấn PostgreSQL thật —
+không mock; Vitest chạy tuần tự vì dùng chung database. Phạm vi từng bộ test:
+[../testing/test-strategy.md](../testing/test-strategy.md).
 
 ## 8. Ghi chú seed và migration
 

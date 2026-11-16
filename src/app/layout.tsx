@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AuthNav } from "@/features/auth/AuthNav";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -23,6 +24,7 @@ export default function RootLayout({
               <Link href="/" className="hover:text-emerald-700">
                 Trang chủ
               </Link>
+              <AuthNav />
               <a
                 href="https://github.com/BTL-IT3180/gearloop/issues/new?template=bug_report.yml&labels=bug"
                 className="hover:text-emerald-700"

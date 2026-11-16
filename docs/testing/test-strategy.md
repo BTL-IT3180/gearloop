@@ -1,7 +1,6 @@
 # GearLoop — Chiến lược kiểm thử & regression
 
 Mục đích: Chiến lược kiểm thử và regression của GearLoop; bảng kiểm kê chi tiết từng suite hiện có nằm ở [test-cases.md](./test-cases.md).
-Nguồn: tệp `doc/regression-testing.md` trước lượt migration tài liệu 12/11/2026, nay đặt tại `docs/testing/test-strategy.md` (nội dung giữ nguyên, chỉ bổ sung dòng mục đích/nguồn và liên kết).
 
 Triết lý mirror từ template: **bộ test bảo vệ tính năng đã có**, chạy lại sau
 mỗi story mới để code mới không làm vỡ luồng cũ. Test dùng HTTP thật và
@@ -55,12 +54,18 @@ trong lỗi connector; unique/serialization từ model API assert P2002/P2034.
 audit-only, booking có ngày BOOKED nhưng chưa có ledger, ledger đã ghi, và nạp
 mẫu lỗi giữa chừng. Kiểm tra exit code và dữ liệu trước/sau, không mock DB.
 
-`e2e/smoke.spec.ts` — smoke test trình duyệt với Playwright Chromium:
+`e2e/` — kiểm tra luồng trình duyệt với Playwright Chromium và PostgreSQL đã
+migrate/seed:
 
-- Mở trang chủ trên Next.js server do Playwright tự khởi động.
-- Xác nhận heading trang chủ hiển thị; không cần database.
+- `smoke.spec.ts`: mở trang chủ và xác nhận heading hiển thị.
+- `auth.spec.ts`: thông tin đăng nhập sai dùng ERR-USR-010 chung; đăng nhập
+  đúng role từ DB và đăng xuất xóa session.
 - Chạy local bằng `npx playwright install chromium` (một lần), sau đó
-  `npm run test:e2e`.
+  `DATABASE_URL=... npm run test:e2e`.
+
+`src/features/auth/credentials.test.ts` kiểm tra xác thực credentials bằng
+PostgreSQL đã seed: mật khẩu/role hợp lệ, mật khẩu sai, user không tồn tại,
+input sai và role client giả mạo.
 
 ## 2. Kế hoạch mở rộng theo sprint
 

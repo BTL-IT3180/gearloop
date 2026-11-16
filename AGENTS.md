@@ -14,7 +14,7 @@ Stack hiện tại:
 - TypeScript strict.
 - Tailwind CSS v4.
 - Prisma và PostgreSQL 16; Neon trên cloud, Docker ở local.
-- Xác thực bằng bcrypt, JWT và cookie `httpOnly` với `jose`; không tự chuyển sang Auth.js.
+- Xác thực bằng Auth.js Credentials, bcrypt và JWT session cookie `httpOnly`; không tự tạo hệ thống session song song.
 - Zod để kiểm tra dữ liệu đầu vào; schema validation đặt theo cấu trúc hiện có trong `src/server/utils/`.
 - Vitest để kiểm thử.
 
@@ -51,6 +51,7 @@ Luồng xử lý chuẩn:
 | Tầng | Trách nhiệm bắt buộc | Không được làm |
 |---|---|---|
 | `src/app/api/**/route.ts` | Nhận request, kiểm tra đầu vào cần thiết, gọi service phù hợp và trả response qua `withApi()` | Chứa truy vấn Prisma hoặc nghiệp vụ phức tạp |
+| `src/features/auth/` | Cấu hình Auth.js, xác thực credentials và thao tác đăng nhập/đăng xuất | Nhận role từ client hoặc trả password hash vào session |
 | `src/server/services/` | Xử lý nghiệp vụ, phân quyền, transaction và lỗi nghiệp vụ bằng `AppError` | Truy cập trực tiếp `req`/`res` hoặc tự viết truy vấn Prisma |
 | `src/server/repositories/` | Thực hiện truy vấn Prisma và trả dữ liệu cho tầng service | Chứa nghiệp vụ hoặc tự quyết định mã HTTP |
 | `src/server/middleware/` | Cung cấp các cơ chế session và kiểm tra quyền theo code hiện có | Bỏ qua kiểm tra quyền để làm cho demo chạy được |
