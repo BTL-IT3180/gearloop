@@ -23,6 +23,7 @@ services:
       NODE_ENV: production
       DATABASE_URL: postgres://gearloop:gearloop@db:5432/gearloop
       AUTH_SECRET: dev-secret-do-not-use-in-prod
+      AUTH_TRUST_HOST: "true" # Auth.js cần tin host khi chạy production trong Docker local.
       PORT: 3000
     depends_on:
       db:

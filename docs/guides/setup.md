@@ -80,6 +80,10 @@ Sao chép `.env.example` thành `.env` (cách 3; Makefile tự sao chép nếu t
 
 `docker-compose.yml` tự đặt `DATABASE_URL` (trỏ tới service `db`) và `AUTH_SECRET` riêng cho container, không đọc `.env`.
 
+Compose đặt `AUTH_TRUST_HOST=true` cho app production trong môi trường Docker
+local; thiếu cấu hình này Auth.js trả lỗi `UntrustedHost` khi đọc session hoặc
+đăng nhập. Session dùng thời lượng 8 giờ theo ADR-008.
+
 ## 6. Tài khoản demo
 
 **Mật khẩu cho mọi tài khoản: `demo123`.** Trong tài liệu, Owner là chủ thiết bị và Renter là người thuê; tên role trong schema/API là `OWNER`, `RENTER` và `ADMIN`.

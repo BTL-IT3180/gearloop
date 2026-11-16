@@ -39,7 +39,7 @@ function clearIdentity(token: JWT) {
 
 export const { auth, handlers, signIn, signOut } = NextAuth({
   pages: { signIn: "/login" },
-  session: { strategy: "jwt", maxAge: 7 * 24 * 60 * 60 },
+  session: { strategy: "jwt", maxAge: 8 * 60 * 60 }, // ADR-008: 8 giờ.
   providers: [
     Credentials({
       credentials: {
