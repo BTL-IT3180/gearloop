@@ -2,18 +2,30 @@
 
 :root {
   color-scheme: light;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  
+  /* Brand Tokens */
+  --color-brand-primary: #059669; /* emerald-600 */
+  --color-brand-hover: #047857;   /* emerald-700 */
+  --color-brand-light: #ecfdf5;   /* emerald-50 */
+  
+  /* Semantic Status Tokens */
+  --color-status-success: #10b981;
+  --color-status-warning: #f59e0b;
+  --color-status-error: #ef4444;
+  --color-status-info: #3b82f6;
+
+  /* Surface & Border Tokens */
+  --color-bg-base: #f8fafc;        /* slate-50 */
+  --color-bg-surface: #ffffff;
+  --color-border-subtle: #e2e8f0;  /* slate-200 */
+  --color-text-main: #0f172a;      /* slate-900 */
+  --color-text-muted: #64748b;     /* slate-500 */
 }
 
 body {
-  background: #f8fafc;
-  color: #0f172a;
-  font-family:
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    "Helvetica Neue",
-    Arial,
-    sans-serif;
+  background-color: var(--color-bg-base);
+  color: var(--color-text-main);
+  font-family: var(--font-sans);
+  min-height: 100vh;
 }
