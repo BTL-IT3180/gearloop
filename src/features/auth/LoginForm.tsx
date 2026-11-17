@@ -1,53 +1,62 @@
 "use client";
-
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { loginAction, type LoginActionState } from "./actions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 const initialState: LoginActionState = {};
-
 export function LoginForm() {
-  const [state, formAction, pending] = useActionState(loginAction, initialState);
-
+  const [state, formAction, pending] = useActionState(
+    loginAction,
+    initialState,
+  );
+  const [visible, setVisible] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   return (
-    <form action={formAction} className="space-y-4">
-      <div>
-        <label htmlFor="email" className="mb-1 block text-sm font-medium">
-          Email
-        </label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          required
-          className="w-full rounded-md border border-slate-300 px-3 py-2"
-        />
-      </div>
-      <div>
-        <label htmlFor="password" className="mb-1 block text-sm font-medium">
-          Mật khẩu
-        </label>
-        <input
+    <form action={formAction} className="login-form" aria-label="Đăng nhập">
+      <Input
+        id="email"
+        name="email"
+        type="email"
+        label="Email"
+        autoComplete="email"
+        required
+        fullWidth
+        placeholder="Email của bạn"
+        value={email}
+        onChange={(event) => setEmail(event.target.value)}
+      />
+      <div className="password-field">
+        <Input
           id="password"
           name="password"
-          type="password"
+          type={visible ? "text" : "password"}
+          label="Mật khẩu"
           autoComplete="current-password"
           required
-          className="w-full rounded-md border border-slate-300 px-3 py-2"
+          fullWidth
+          placeholder="Nhập mật khẩu"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
         />
+        <button
+          className="password-toggle"
+          type="button"
+          aria-pressed={visible}
+          onClick={() => setVisible(!visible)}
+        >
+          {visible ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+        </button>
       </div>
       {state.error && (
-        <p role="alert" className="text-sm text-red-700">
+        <p role="alert" className="login-error">
           {state.error}
         </p>
       )}
-      <button
-        type="submit"
-        disabled={pending}
-        className="w-full rounded-md bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-800 disabled:opacity-60"
-      >
+      <Button type="submit" isLoading={pending} fullWidth>
         {pending ? "Đang đăng nhập..." : "Đăng nhập"}
-      </button>
+      </Button>
     </form>
   );
 }

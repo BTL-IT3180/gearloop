@@ -5,7 +5,7 @@ Nguồn: `tests/api-contract.test.ts`, `tests/schema-integrity.test.ts`, `tests/
 
 ## 1. Tổng quan
 
-Số case được đếm bằng cách đọc trực tiếp các file test ngày 12/11/2026: mỗi `it(...)` tính 1 case, mỗi `it.each([...])` tính bằng số dòng dữ liệu (mỗi dòng sinh 1 case).
+Số case cập nhật ngày 17/11/2026: mỗi `it(...)` tính 1 case, mỗi `it.each([...])` tính bằng số dòng dữ liệu (mỗi dòng sinh 1 case).
 
 | File | Số case | Cần database | Chạy bằng | Phạm vi ngắn |
 | --- | ---: | --- | --- | --- |
@@ -14,10 +14,14 @@ Số case được đếm bằng cách đọc trực tiếp các file test ngày
 | `tests/seed.test.ts` | 5 | Có (`gearloop_test` local, quyền tạo/xóa schema) | Vitest | Script seed thật: reseed, guard dữ liệu, rollback |
 | `tests/smoke.test.ts` | 5 | Có (DB `gearloop_test` đã migrate + seed) | Vitest | Smoke schema + seed (GL-107, GL-109) |
 | `src/features/auth/credentials.test.ts` | 6 | Có (DB `gearloop_test` đã seed) | Vitest | Credentials, role từ DB, input sai |
-| `e2e/smoke.spec.ts`, `e2e/auth.spec.ts` | 3 | Có (DB `gearloop_test` đã migrate + seed) | Playwright Chromium | Smoke trang chủ, lỗi credentials chung, đăng nhập/đăng xuất, session API và cookie httpOnly hết hạn sau 8 giờ |
-| **Tổng Vitest** | **109** | — | — | 31 + 62 + 5 + 5 + 6 |
+| `tests/app-shell.test.ts` | 3 | Không | Vitest | Ánh xạ menu cho RENTER/OWNER/ADMIN |
+| `tests/skeleton-and-error-pages.test.ts` | 4 | Không | Vitest | Export skeleton, loading, 404 và error boundary |
+| `tests/ui-primitives.test.ts` | 5 | Không | Vitest | Button đang xử lý, nhãn/error Input, helper/disabled Select, EmptyState có hành động, exports |
+| `tests/category-search.test.ts` | 7 | Không | Vitest | Tìm tiếng Việt, không dấu, chuẩn hóa chữ/space, lọc kết hợp, input không khớp |
+| `e2e/smoke.spec.ts`, `e2e/auth.spec.ts`, `e2e/app-shell.spec.ts` | 12 | Có (DB `gearloop_test` đã migrate + seed) | Playwright Chromium | Trang chủ, tìm danh mục, mobile/menu, credentials, ba role từ session thật, logout, cookie httpOnly 8 giờ, 404 |
+| **Tổng Vitest** | **128** | — | — | 109 + 3 + 4 + 5 + 7 |
 
-Số 103 trong `docs/planning/sprints/owner-renter-rename.md` là kết quả lịch sử trước khi thêm 6 case credentials. Tổng hiện tại là 109 case Vitest; 3 case E2E chạy riêng bằng Playwright.
+Số 103 trong `docs/planning/sprints/owner-renter-rename.md` và 109 trước đợt E0-F3 là kết quả lịch sử. Tổng hiện tại là 128 case Vitest; 12 case E2E chạy riêng bằng Playwright.
 
 ## 2. Chi tiết theo file
 
@@ -77,12 +81,19 @@ Liên hệ requirement: GL-107 (CalendarDay nền tảng) và GL-109 (seed scrip
 
 Mục đích: kiểm tra đăng nhập credentials bằng PostgreSQL đã seed: mật khẩu/role hợp lệ, mật khẩu sai, user không tồn tại, input sai và role client giả mạo.
 
-### 2.6 `e2e/` — 3 case, cần database đã migrate + seed
+### 2.6 `e2e/` — 12 case, cần database đã migrate + seed
 
 Playwright tự khởi động server Next.js và chạy trên Chromium:
 
 - `e2e/smoke.spec.ts` (1): mở trang chủ và xác nhận heading "Thuê thiết bị, đừng mua hẳn." hiển thị.
 - `e2e/auth.spec.ts` (2): thông tin đăng nhập sai dùng lỗi chung; đăng nhập đúng role từ DB rồi đăng xuất.
+- `e2e/app-shell.spec.ts` (9): tìm danh mục/no-results/reset; bỏ qua cookie role giả; menu mobile không tràn ngang; hiện/ẩn mật khẩu và giữ input sai; logout mobile; menu/session/logout cho ba role; HTTP 404 và đường về trang chủ.
+
+### 2.7 Giao diện nền tảng — 19 case Vitest, không cần database
+
+`app-shell.test.ts` (3) và `skeleton-and-error-pages.test.ts` (4) kiểm tra cấu hình menu/export nền tảng. Đây không phải kiểm tra phân quyền server hoặc chứng minh trực quan lỗi 500.
+
+`ui-primitives.test.ts` (5) render HTML thật để kiểm tra trạng thái tương tác, nhãn và mô tả field; `category-search.test.ts` (7) kiểm tra lọc danh mục tiếng Việt. Chi tiết thay đổi và giới hạn: [bản ghi E0-F3](../planning/sprints/e0-f3-storefront.md).
 
 ## 3. Cách chạy từng suite
 
