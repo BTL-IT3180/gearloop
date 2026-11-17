@@ -111,3 +111,7 @@ cho yêu cầu và `prisma/schema.prisma` cho dữ liệu; câu hỏi chưa ch�
 - Tài liệu bị thay thế: hợp nhất nội dung còn giá trị vào nguồn hiện hành → cập nhật mọi tham chiếu → xóa file cũ trong cùng PR.
 - Không giữ file "deprecated" chỉ vì lịch sử; không tạo tài liệu rỗng hoặc trỏ vòng.
 - Mọi đợt di chuyển/xóa tài liệu diện rộng phải nêu rõ trong PR: lý do, bằng chứng không còn tham chiếu, kết quả kiểm tra link.
+
+## 7. Bản ghi công việc
+
+- [E0-F3 — UI primitives và AppShell](./planning/sprints/e0-f3-storefront.md): thiết kế storefront, tích hợp session và phạm vi kiểm thử.

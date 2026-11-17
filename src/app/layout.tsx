@@ -1,48 +1,35 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { AuthNav } from "@/features/auth/AuthNav";
+import localFont from "next/font/local";
+import { AppShell } from "@/components/layout/app-shell";
+import { getCurrentUser } from "@/lib/auth";
 import "./globals.css";
-
+const vietnamese = localFont({
+  src: [
+    { path: "../../public/fonts/be-vietnam-pro-400.ttf", weight: "400" },
+    { path: "../../public/fonts/be-vietnam-pro-500.ttf", weight: "500" },
+    { path: "../../public/fonts/be-vietnam-pro-600.ttf", weight: "600" },
+    { path: "../../public/fonts/be-vietnam-pro-700.ttf", weight: "700" },
+    { path: "../../public/fonts/be-vietnam-pro-800.ttf", weight: "800" },
+  ],
+  variable: "--font-vietnamese",
+  display: "swap",
+});
 export const metadata: Metadata = {
-  title: "GearLoop — Cho thuê thiết bị ngang hàng",
+  title: {
+    default: "GearLoop — Thiết bị tốt, cho kế hoạch của bạn",
+    template: "%s | GearLoop",
+  },
   description:
-    "Sàn cho thuê thiết bị P2P: máy ảnh, dụng cụ, đồ cắm trại. Lịch đặt rõ ràng, tiền cọc bảo vệ cả hai bên. Dự án môn IT3180.",
+    "Khám phá thế giới thiết bị cho thuê: máy ảnh, đồ cắm trại và dụng cụ. Lịch thuê rõ ràng, biên bản nhận trả và tiền cọc minh bạch.",
 };
-
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const user = await getCurrentUser();
   return (
-    <html lang="vi">
-      <body className="min-h-screen flex flex-col">
-        <header className="border-b border-slate-200 bg-white">
-          <div className="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
-            <Link href="/" className="font-bold text-lg tracking-tight">
-              Gear<span className="text-emerald-600">Loop</span>
-            </Link>
-            <nav className="text-sm flex gap-4">
-              <Link href="/" className="hover:text-emerald-700">
-                Trang chủ
-              </Link>
-              <AuthNav />
-              <a
-                href="https://github.com/BTL-IT3180/gearloop/issues/new?template=bug_report.yml&labels=bug"
-                className="hover:text-emerald-700"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Báo lỗi
-              </a>
-            </nav>
-          </div>
-        </header>
-        <main className="flex-1">{children}</main>
-        <footer className="border-t border-slate-200 bg-white">
-          <div className="mx-auto max-w-5xl px-4 py-3 text-xs text-slate-500">
-            Dự án môn IT3180 — Nhập môn Công nghệ phần mềm · Demo phục vụ học
-            tập, không phải sản phẩm production.
-          </div>
-        </footer>
+    <html lang="vi" className={vietnamese.variable}>
+      <body>
+        <AppShell user={user}>{children}</AppShell>
       </body>
     </html>
   );
