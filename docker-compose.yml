@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: gearloop
       POSTGRES_DB: gearloop
     ports:
-      - "55432:5432" # cổng lạ tránh đụng PostgreSQL 5432 có sẵn trên máy
+      - "55433:5432" # cổng lạ tránh đụng PostgreSQL 5432 có sẵn trên máy
     volumes:
       - gearloop_pgdata:/var/lib/postgresql/data
     healthcheck:
