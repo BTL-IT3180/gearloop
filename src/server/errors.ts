@@ -16,6 +16,13 @@ export class AppError extends Error {
   }
 }
 
+export class ForbiddenError extends AppError {
+  constructor() {
+    super("ERR-USR-008");
+    this.name = "ForbiddenError";
+  }
+}
+
 // Giữ các guard đang dùng requireRole; không thay đổi điều kiện phân quyền.
 export const unauthorized = () => new AppError("ERR-SYS-003");
-export const forbidden = () => new AppError("ERR-USR-008");
+export const forbidden = () => new ForbiddenError();

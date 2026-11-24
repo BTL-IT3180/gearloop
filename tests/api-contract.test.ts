@@ -124,12 +124,15 @@ describe("response API", () => {
 
 describe("guard hiện có dùng catalog", () => {
   it("cho phép role phù hợp", () => {
-    expect(() => requireRole("OWNER", "ADMIN", "OWNER")).not.toThrow();
+    expect(() => requireRole({ user: { id: "7", role: "OWNER" } }, "ADMIN", "OWNER")).not.toThrow();
   });
 
-  it.each([[undefined, "ERR-SYS-003", 401], ["RENTER", "ERR-USR-008", 403]] as const)(
-    "từ chối role %s", async (role, code, status) => {
-      const route = withApi(async () => { requireRole(role, "ADMIN"); return null; });
+  it.each([
+    [null, "ERR-SYS-003", 401],
+    [{ user: { id: "7", role: "RENTER" as const } }, "ERR-USR-008", 403],
+  ] as const)(
+    "từ chối session %s", async (session, code, status) => {
+      const route = withApi(async () => { requireRole(session, "ADMIN"); return null; });
       const response = await route(request("{}"), context());
       expect(response.status).toBe(status);
       expect(await response.json()).toEqual({ error: errorMessage(code), code });
