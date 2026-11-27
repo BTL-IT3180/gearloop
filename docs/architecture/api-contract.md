@@ -65,12 +65,16 @@ loginAction (Server Action) { email, password }
   → sai / không tồn tại → cùng thông điệp ERR-USR-010
   → đúng → Auth.js tạo JWT session cookie; role được nạp lại từ DB
 logoutAction (Server Action)
-  → Auth.js signOut → xóa session cookie
+  → ghi ID của phiên vào RevokedAuthSession → Auth.js signOut → xóa session cookie
 ```
 
-Cookie: `httpOnly; SameSite=Lax; Secure (production)`,session tối đa 8 giờ (ADR-008).
+Cookie: `httpOnly; SameSite=Lax; Secure (production)`, session tối đa 8 giờ (ADR-008).
 Role không lấy từ form hoặc dữ liệu do client gửi; Auth.js kiểm tra lại user
 đang hoạt động và role từ PostgreSQL. Không lưu `passwordHash` vào session.
+Mỗi lần đăng nhập cấp một ID ngẫu nhiên giữ nguyên khi JWT được làm mới.
+Auth.js từ chối ID đã thu hồi và JWT cũ thiếu ID. Cả Server Action lẫn
+`POST /api/auth/signout` phải ghi thu hồi trước khi trả về đăng xuất thành công.
+Các phiên khác của cùng tài khoản giữ hiệu lực.
 Auth.js handlers được wire tại `/api/auth/[...nextauth]`; không có API route
 riêng cho login/logout. Chi tiết quyết định: [ADR-002](./adrs/002-auth.md).
 

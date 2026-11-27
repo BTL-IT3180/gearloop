@@ -1,7 +1,7 @@
 "use server";
 
 import { AuthError } from "next-auth";
-import { signIn, signOut } from "./auth";
+import { revokeAndSignOut, signIn } from "./auth";
 import { errorMessage } from "@/lib/error-catalog";
 import { loginSchema } from "@/lib/validation/auth";
 
@@ -35,5 +35,5 @@ export async function loginAction(
 }
 
 export async function logoutAction(): Promise<void> {
-  await signOut({ redirectTo: "/" });
+  await revokeAndSignOut();
 }

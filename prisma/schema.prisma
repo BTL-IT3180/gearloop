@@ -92,6 +92,11 @@ model User {
   audits          AuditLog[]
 }
 
+model RevokedAuthSession {
+  id        String   @id @db.Uuid
+  revokedAt DateTime @default(now())
+}
+
 model Category {
   id          Int    @id @default(autoincrement())
   name        String @unique // "Máy ảnh & Quay phim", "Dụng cụ & Sửa chữa", ...

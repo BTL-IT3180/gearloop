@@ -1,6 +1,6 @@
 # GearLoop — Mô hình dữ liệu
 
-Tài liệu mô tả 16 bảng, các cột nghiệp vụ chính, quan hệ giữa các bảng và
+Tài liệu mô tả 17 bảng, các cột nghiệp vụ chính, quan hệ giữa các bảng và
 vòng đời dữ liệu. Danh sách field đầy đủ nằm trong schema Prisma.
 
 `prisma/schema.prisma` là nguồn đối chiếu cấu trúc model, field, enum và quan hệ.
@@ -26,11 +26,11 @@ rename riêng. DB đã áp dụng lịch sử cũ cần DB OWNER xử lý trư�
 
 ## 1. Bức tranh tổng thể
 
-GearLoop có **16 bảng**, chia 4 nhóm:
+GearLoop có **17 bảng**, chia 4 nhóm:
 
 | Nhóm | Bảng | Bản chất |
 | --- | --- | --- |
-| **Con người** | `User` | Ai đăng nhập, vai trò nào |
+| **Con người** | `User`, `RevokedAuthSession` | Tài khoản, vai trò và các phiên đã thu hồi |
 | **Danh mục** (ít đổi) | `Category`, `ChecklistTemplateItem`, `PolicySetting` | Cấu hình vận hành, Admin khai một lần |
 | **Tài sản** (nền kinh tế của app) | `Item`, `ItemPhoto`, `RateTier`, `DepositPolicy`, `CalendarDay` | Thiết bị, giá theo ngày, % cọc, lịch ngày |
 | **Giao dịch** (đổi liên tục) | `Booking`, `ConditionReport`, `ConditionReportEntry`, `DamageClaim`, `DepositLedger`, `Review`, `AuditLog` | Trái tim của app — lượt thuê và vòng đời của nó |
@@ -49,6 +49,10 @@ Hiểu nhanh bằng một câu:
 
 ```mermaid
 erDiagram
+    RevokedAuthSession {
+        uuid id PK
+        datetime revokedAt
+    }
     User            ||--o{ Item : "sở hữu"
     Category       ||--o{ Item : "phân loại"
     Category       ||--o{ ChecklistTemplateItem : "mẫu biên bản"
@@ -240,6 +244,13 @@ Ký hiệu: **PK** khóa chính · **FK** khóa ngoại · **UK** unique.
 | `fullName` | `text` | Không | - | | Tên hiển thị |
 | `role` | `Role` | Không | `RENTER` | | `ADMIN \| OWNER \| RENTER` — đúng 3 vai trò (ADR-007) |
 | `isActive` | `boolean` | Không | `true` | | Admin khoá → chặn đăng nhập |
+
+### `RevokedAuthSession`
+
+Mỗi bản ghi lưu ID ngẫu nhiên của một lần đăng nhập đã bị thu hồi và
+thời điểm thu hồi. Bảng độc lập với `User` và chỉ lưu ID cùng dấu thời gian.
+Khóa chính cho phép đăng xuất lại mà vẫn chỉ ghi một dòng. Bản ghi được giữ
+để Auth.js từ chối mọi JWT còn hiệu lực có cùng ID, kể cả JWT đã làm mới.
 
 ### 3.2. `Item`
 
