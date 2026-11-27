@@ -1,11 +1,15 @@
 import "server-only";
 import type { Role } from "@prisma/client";
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import type { DefaultSession } from "next-auth";
 import type { JWT } from "next-auth/jwt";
 import Credentials from "next-auth/providers/credentials";
 import { prisma } from "@/server/db/client";
-import { authorizeCredentials } from "./credentials";
+import { authorizeCredentials, LockedAccountError } from "./credentials";
+
+export class LockedAccountSignin extends CredentialsSignin {
+  override code = "ERR-USR-011";
+}
 
 declare module "next-auth" {
   interface Session {
@@ -46,7 +50,14 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Mật khẩu", type: "password" },
       },
-      authorize: authorizeCredentials,
+      async authorize(credentials) {
+        try {
+          return await authorizeCredentials(credentials);
+        } catch (error) {
+          if (error instanceof LockedAccountError) throw new LockedAccountSignin();
+          throw error;
+        }
+      },
     }),
   ],
   callbacks: {

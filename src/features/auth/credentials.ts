@@ -10,6 +10,8 @@ export type AuthenticatedUser = {
   role: Role;
 };
 
+export class LockedAccountError extends Error {}
+
 export async function authorizeCredentials(
   credentials: unknown,
 ): Promise<AuthenticatedUser | null> {
@@ -28,8 +30,9 @@ export async function authorizeCredentials(
     },
   });
 
-  if (!user || !user.isActive) return null;
+  if (!user) return null;
   if (!(await bcrypt.compare(parsed.data.password, user.passwordHash))) return null;
+  if (!user.isActive) throw new LockedAccountError();
 
   return {
     id: String(user.id),
