@@ -74,10 +74,9 @@ Role không lấy từ form hoặc dữ liệu do client gửi; Auth.js kiểm t
 Auth.js handlers được wire tại `/api/auth/[...nextauth]`; không có API route
 riêng cho login/logout. Chi tiết quyết định: [ADR-002](./adrs/002-auth.md).
 
-**Discrepancy cần xác nhận:** implementation hiện cũng trả lỗi chung
-`ERR-USR-010` cho user không hoạt động; canonical US-013/BR-013-01 yêu cầu
-`ERR-USR-011` cho tài khoản bị khóa. Không tự đổi yêu cầu hoặc hành vi ngoài
-phạm vi task; cần người phụ trách sản phẩm chốt cách xử lý.
+**AC-001-04 (issue #82):** Tài khoản bị khóa nhập đúng mật khẩu nhận
+`ERR-USR-011` trước khi có phiên. Nếu nhập sai mật khẩu, hệ thống trả
+`ERR-USR-010`. Quy tắc này cập nhật phần lỗi tài khoản bị khóa trong ADR-002.
 
 ## 4. Đặt lịch (S2) — luồng nhiều bước nhất
 

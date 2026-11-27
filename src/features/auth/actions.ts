@@ -1,7 +1,7 @@
 "use server";
 
-import { AuthError } from "next-auth";
-import { signIn, signOut } from "./auth";
+import { CredentialsSignin } from "next-auth";
+import { LockedAccountSignin, signIn, signOut } from "./auth";
 import { errorMessage } from "@/lib/error-catalog";
 import { loginSchema } from "@/lib/validation/auth";
 
@@ -25,7 +25,10 @@ export async function loginAction(
       redirectTo: "/",
     });
   } catch (error) {
-    if (error instanceof AuthError && error.type === "CredentialsSignin") {
+    if (error instanceof LockedAccountSignin) {
+      return { error: errorMessage("ERR-USR-011") };
+    }
+    if (error instanceof CredentialsSignin) {
       return { error: errorMessage("ERR-USR-010") };
     }
     throw error;
